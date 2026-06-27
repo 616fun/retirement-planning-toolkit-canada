@@ -12,7 +12,7 @@ Mirrors the architecture documented in docs/ARCHITECTURE.md:
       blue text   = hardcoded input
   * Tabs built here: Assumptions, Net Worth Snapshot, Income Streams,
     Year-by-Year Projections, Employer Concentration, Monte Carlo (summary),
-    RRSP Meltdown / OAS Clawback (scaffold), Action Plan.
+    RRSP Meltdown (lifetime-tax optimizer), Action Plan.
 
 Run:
   python3 engine/build_model.py                      # demo config
@@ -27,6 +27,7 @@ from config_loader import (  # noqa: E402
     load_config, investable_total, employer_stock_total, employer_concentration_pct,
     current_age,
 )
+import tax_ca  # noqa: E402
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -43,6 +44,29 @@ HDR_FILL = PatternFill("solid", fgColor="305496")
 TITLE = Font(bold=True, size=14, color="1F3864")
 thin = Side(style="thin", color="D9D9D9")
 BORDER = Border(left=thin, right=thin, top=thin, bottom=thin)
+RED = Font(color="CF222E")
+GOODF = Font(color="1A7F37", bold=True)
+
+# RRIF prescribed minimum withdrawal factors (post-2015 rules), applied to the
+# Jan-1 balance. Source: canada.ca "Chart - Prescribed factors" (see
+# docs/CANADA_RULES.md s7). This is regulation, not user config, so it is
+# encoded here rather than in config.json.
+RRIF_FACTORS = {
+    71: .0528, 72: .0540, 73: .0553, 74: .0567, 75: .0582, 76: .0598,
+    77: .0617, 78: .0636, 79: .0658, 80: .0682, 81: .0708, 82: .0738,
+    83: .0771, 84: .0808, 85: .0851, 86: .0899, 87: .0955, 88: .1021,
+    89: .1099, 90: .1192, 91: .1306, 92: .1449, 93: .1634, 94: .1879,
+}
+
+
+def rrif_min_factor(age):
+    """Prescribed RRIF minimum factor for an age. 0 before the first mandatory
+    withdrawal (year you turn 72, after converting by 71); 20% at 95+."""
+    if age < 72:
+        return 0.0
+    if age >= 95:
+        return 0.20
+    return RRIF_FACTORS.get(age, 0.0)
 
 
 def _title(ws, text):
@@ -57,6 +81,16 @@ def _header_row(ws, cells, row=None):
         c.font = HDR
         c.fill = HDR_FILL
         c.border = BORDER
+
+
+def _acct_label(key):
+    """Human label for a Canadian account key (keeps RRSP/TFSA/etc. uppercase)."""
+    pretty = key.replace("_", " ").title()
+    for word, repl in (("Rrsp", "RRSP"), ("Tfsa", "TFSA"), ("Rrif", "RRIF"),
+                       ("Lira", "LIRA"), ("Fhsa", "FHSA"), ("Resp", "RESP"),
+                       ("Gics", "GICs")):
+        pretty = pretty.replace(word, repl)
+    return pretty
 
 
 def build_assumptions(wb, cfg):
@@ -143,16 +177,6 @@ def build_net_worth(wb, cfg):
     return ws
 
 
-def _acct_label(key):
-    """Human label for a Canadian account key (keeps RRSP/TFSA/etc. uppercase)."""
-    pretty = key.replace("_", " ").title()
-    for word, repl in (("Rrsp", "RRSP"), ("Tfsa", "TFSA"), ("Rrif", "RRIF"),
-                       ("Lira", "LIRA"), ("Fhsa", "FHSA"), ("Resp", "RESP"),
-                       ("Gics", "GICs")):
-        pretty = pretty.replace(word, repl)
-    return pretty
-
-
 def build_concentration(wb, cfg):
     ws = wb.create_sheet("Employer Concentration")
     _title(ws, f"Employer Concentration -- {cfg['employer_stock']['employer_name']} "
@@ -213,10 +237,8 @@ def build_year_by_year(wb, cfg):
         spend = spend0 * ((1 + infl) ** n) if retired else 0
         pen = pension * ((1 + cfg["income"]["pension_cola"]) ** max(0, a_age - a_ret_age)) if retired else 0
         pas = passive if retired else 0
-        # CPP + OAS turn on at each spouse's own claim age, independent of retirement.
         govt = ((cpp_a if a_age >= a_cpp_age else 0) + (oas_a if a_age >= a_oas_age else 0)
                 + (cpp_b if b_age >= b_cpp_age else 0) + (oas_b if b_age >= b_oas_age else 0))
-        # grow then draw
         portfolio *= (1 + ret)
         draw = 0
         if retired:
@@ -246,46 +268,226 @@ def build_monte_carlo(wb, cfg):
     return ws
 
 
-def build_meltdown(wb, cfg):
-    """Scaffold for the RRSP-meltdown / OAS-clawback-headroom plan.
+# ===========================================================================
+# RRSP Meltdown -- lifetime-tax optimizer
+# ===========================================================================
+def _simulate_meltdown(cfg, strategy, target=None):
+    """Simulate the household's registered drawdown to a planning horizon and
+    return total lifetime tax + a year-by-year schedule.
 
-    The Canadian analog of a Roth-conversion ladder: in low-income years
-    (after employment income stops, before CPP/OAS and the age-71 RRIF
-    minimums force withdrawals), draw RRSP voluntarily to fill the low tax
-    brackets and shrink the future RRIF -- staying under the OAS clawback
-    threshold. This tab lays out the headroom; fill in planned draws per year.
+    strategy:
+      "none"     -- take only the forced RRIF minimum (the do-nothing baseline)
+      "clawback" -- fill household income up to (n_spouses x OAS clawback line)
+      "optimal"  -- fill each retired spouse's taxable income up to `target`
+
+    Lifetime tax = sum of annual (income tax + OAS clawback) for both spouses,
+    PLUS the terminal deemed-disposition tax on the RRSP/RRIF still standing at
+    the horizon (taxed to a single surviving filer -- the reason melting early
+    can win). All taxes are discounted to PRESENT VALUE at the inflation rate, so
+    the optimizer trades the cost of paying tax now against deferring it -- this
+    is what produces an interior optimum rather than "drain as fast as possible."
+    See docs/CANADA_RULES.md for the modelling assumptions.
+    """
+    import datetime
+    a = cfg["assumptions"]
+    m = cfg["household"]["members"]
+    gb, inc, acct = cfg["government_benefits"], cfg["income"], cfg["accounts"]
+    prov = cfg["household"]["province"]
+
+    infl, ret = a["inflation_rate"], a["portfolio_return_base"]
+    thr0 = a["oas_clawback_threshold"]
+    spend0 = a["retirement_spend_annual"]
+    base_year = datetime.date.today().year
+
+    a_age0, b_age0 = current_age(cfg, "spouse_a"), current_age(cfg, "spouse_b")
+    a_ret, b_ret = m[0]["retirement_age"], m[1]["retirement_age"]
+    a_cpp, a_oas = m[0]["cpp_claim_age"], m[0]["oas_claim_age"]
+    b_cpp, b_oas = m[1]["cpp_claim_age"], m[1]["oas_claim_age"]
+
+    rrsp = float(acct.get("spouse_a_rrsp", 0) + acct.get("spouse_b_rrsp", 0))
+    buffer = float(acct.get("spouse_a_non_registered", 0) + acct.get("spouse_b_non_registered", 0)
+                   + acct.get("joint_non_registered", 0) + acct.get("cash_and_gics", 0))
+    tfsa = float(acct.get("spouse_a_tfsa", 0) + acct.get("spouse_b_tfsa", 0))
+
+    pension_m, cola = inc["pension_monthly_at_retirement"], inc["pension_cola"]
+    passive0, b_salary0 = inc["passive_income_annual"], inc["spouse_b_annual"]
+    cpp_a0, oas_a0 = gb["spouse_a_cpp_monthly"] * 12, gb["spouse_a_oas_monthly"] * 12
+    cpp_b0, oas_b0 = gb["spouse_b_cpp_monthly"] * 12, gb["spouse_b_oas_monthly"] * 12
+
+    horizon = max(1, 90 - a_age0)            # project to spouse A age 90
+    lifetime_tax, insolvent, schedule = 0.0, False, []
+    last_survivor_base = 0.0
+
+    for n in range(0, horizon + 1):
+        year = base_year + n
+        a_age, b_age = a_age0 + n, b_age0 + n
+        rrsp *= (1 + ret); buffer *= (1 + ret); tfsa *= (1 + ret)
+        if a_age < a_ret:
+            continue  # still working -- no draws modelled before retirement
+
+        idx = (1 + infl) ** n
+        spend = spend0 * idx
+        pension = pension_m * 12 * ((1 + cola) ** max(0, a_age - a_ret))
+        passive = passive0 * idx
+        b_work = b_salary0 * idx if b_age < b_ret else 0.0
+        cpp_a = cpp_a0 * idx if a_age >= a_cpp else 0.0
+        oas_a = oas_a0 * idx if a_age >= a_oas else 0.0
+        cpp_b = cpp_b0 * idx if b_age >= b_cpp else 0.0
+        oas_b = oas_b0 * idx if b_age >= b_oas else 0.0
+
+        forced = min(rrsp * rrif_min_factor(a_age), rrsp)
+        retirement_fixed = pension + passive + cpp_a + oas_a + cpp_b + oas_b + forced
+        n_active = (1 if a_age >= a_ret else 0) + (1 if b_age >= b_ret else 0)
+
+        if strategy == "none":
+            voluntary = 0.0
+        elif strategy == "clawback":
+            ceiling = n_active * thr0 * idx
+            voluntary = max(0.0, min(ceiling - (retirement_fixed + b_work), rrsp - forced))
+        else:  # optimal -- level per-spouse taxable target
+            ceiling = n_active * target
+            voluntary = max(0.0, min(ceiling - (retirement_fixed + b_work), rrsp - forced))
+
+        withdraw = forced + voluntary
+        rrsp -= withdraw
+
+        # ---- tax: equalize retirement income across both spouses once both retired ----
+        retire_income = retirement_fixed + voluntary
+        both_retired = (a_age >= a_ret) and (b_age >= b_ret)
+        if both_retired:
+            half = retire_income / 2.0
+            oas_each = (oas_a + oas_b) / 2.0
+            tax = 2 * tax_ca.income_tax(half, prov, year, infl)
+            claw = 2 * tax_ca.oas_clawback(half, oas_each, thr0 * idx)
+            last_survivor_base = (pension + cpp_a + oas_a) / 1.0  # survivor keeps own + maybe survivor benefits
+        else:
+            inc_a = retire_income            # all retirement income to the retired spouse A
+            inc_b = b_work
+            tax = tax_ca.income_tax(inc_a, prov, year, infl) + tax_ca.income_tax(inc_b, prov, year, infl)
+            claw = (tax_ca.oas_clawback(inc_a, oas_a, thr0 * idx)
+                    + tax_ca.oas_clawback(inc_b, oas_b, thr0 * idx))
+            last_survivor_base = pension + cpp_a + oas_a
+        year_tax = tax + claw
+        lifetime_tax += year_tax / ((1 + infl) ** n)   # present value, today's $
+
+        # ---- fund spending; surplus registered cash sweeps into the TFSA ----
+        cash_in = pension + passive + cpp_a + oas_a + cpp_b + oas_b + b_work + withdraw
+        net_cash = cash_in - year_tax
+        if net_cash >= spend:
+            tfsa += (net_cash - spend)
+        else:
+            short = spend - net_cash
+            take = min(buffer, short); buffer -= take; short -= take
+            if short > 0:
+                take = min(tfsa, short); tfsa -= take; short -= take
+            if short > 1.0:
+                insolvent = True
+
+        schedule.append({
+            "year": year, "a_age": a_age, "b_age": b_age,
+            "taxable": retire_income, "forced": forced, "voluntary": voluntary,
+            "tax": tax, "claw": claw, "rrsp": rrsp, "estate": rrsp + buffer + tfsa,
+            "over": claw > 0,
+        })
+
+    # ---- terminal tax: RRSP left standing is deemed disposed at death (single filer) ----
+    final_year = base_year + horizon
+    terminal_raw = (tax_ca.income_tax(last_survivor_base + rrsp, prov, final_year, infl)
+                    - tax_ca.income_tax(last_survivor_base, prov, final_year, infl))
+    terminal_tax = terminal_raw / ((1 + infl) ** horizon)   # present value, today's $
+    total_tax = lifetime_tax + terminal_tax
+    estate = rrsp + buffer + tfsa
+    return {
+        "strategy": strategy, "target": target,
+        "lifetime_tax": lifetime_tax, "terminal_tax": terminal_tax, "total_tax": total_tax,
+        "rrsp_end": rrsp, "estate_end": estate, "insolvent": insolvent, "schedule": schedule,
+    }
+
+
+def _optimize_meltdown(cfg):
+    """Grid-search the level per-spouse meltdown target that minimizes total
+    lifetime tax (subject to the plan staying solvent)."""
+    best = None
+    for t in range(20000, 130001, 2500):
+        r = _simulate_meltdown(cfg, "optimal", target=float(t))
+        if r["insolvent"]:
+            continue
+        if best is None or r["total_tax"] < best["total_tax"]:
+            best = r
+    if best is None:  # fall back to the lowest target if nothing is solvent
+        best = _simulate_meltdown(cfg, "optimal", target=20000.0)
+    return best
+
+
+def build_meltdown(wb, cfg):
+    """RRSP-meltdown / OAS-clawback tab -- lifetime-tax optimizer (objective #2).
+
+    Searches for the level annual RRSP/RRIF withdrawal target (per spouse) that
+    minimizes TOTAL lifetime tax -- in-life income tax + OAS clawback across both
+    spouses, PLUS the terminal deemed-disposition tax on whatever RRSP is left at
+    death. Compares three strategies and shows the winner's year-by-year plan.
+
+    Tax engine: engine/tax_ca.py (federal + Ontario; other provinces fall back to
+    Ontario with a warning -- per-province modules are roadmapped). Models ordinary
+    income, OAS clawback, pension/registered income equalization between spouses,
+    and terminal RRSP tax. Does NOT yet model non-registered capital-gains tax,
+    the dividend tax credit, or TFSA contribution limits. Illustrative, not advice.
     """
     ws = wb.create_sheet("RRSP Meltdown")
-    _title(ws, "RRSP Meltdown / OAS Clawback Headroom (scaffold)")
-    a = cfg["assumptions"]
-    members = cfg["household"]["members"]
-    ws.append(["The Canadian analog of a Roth-conversion ladder. Draw RRSP in low-income"])
-    ws.append(["years to fill low brackets and stay under the OAS clawback line. See docs/CANADA_RULES.md."])
+    _title(ws, "RRSP Meltdown -- Lifetime-Tax Optimizer")
+    prov = cfg["household"]["province"]
+
+    none = _simulate_meltdown(cfg, "none")
+    claw = _simulate_meltdown(cfg, "clawback")
+    best = _optimize_meltdown(cfg)
+
+    ws.append([f"Objective: minimize TOTAL lifetime tax (both spouses' income tax + OAS clawback, "
+               f"plus terminal RRSP tax at death). Province: {prov}. See docs/CANADA_RULES.md."])
     ws.append([])
-    ws.append(["OAS clawback threshold (net income)", a["oas_clawback_threshold"]])
-    ws.cell(row=ws.max_row, column=2).font = BLUE
-    ws.append(["RRIF conversion deadline (age)", a.get("rrif_conversion_age", 71)])
-    ws.cell(row=ws.max_row, column=2).font = BLUE
+
+    # ---- strategy comparison ----
+    cmp_headers = ["Strategy", "Per-spouse target", "In-life tax (PV)", "Terminal RRSP tax (PV)",
+                   "TOTAL lifetime tax (PV)", "RRSP at horizon", "Estate at horizon"]
+    ws.append(cmp_headers)
+    _header_row(ws, cmp_headers)
+    rows = [
+        ("Do nothing (RRIF minimums only)", "n/a", none),
+        ("Fill to OAS clawback line", "clawback line", claw),
+        ("Lifetime-tax optimal", f"${best['target']:,.0f}/yr", best),
+    ]
+    base_total = none["total_tax"]
+    optimal_row = None
+    for label, tgt, r in rows:
+        ws.append([label, tgt, round(r["lifetime_tax"]), round(r["terminal_tax"]),
+                   round(r["total_tax"]), round(r["rrsp_end"]), round(r["estate_end"])])
+        if r is best:
+            optimal_row = ws.max_row
+            for c in range(1, len(cmp_headers) + 1):
+                ws.cell(row=ws.max_row, column=c).font = GOODF
     ws.append([])
-    headers = ["Year", "Spouse A age", "Other income (est)", "OAS clawback headroom",
-               "Planned RRSP draw", "Notes"]
-    ws.append(headers)
-    _header_row(ws, headers)
-    import datetime
-    base_year = datetime.date.today().year
-    a_age0 = current_age(cfg, "spouse_a")
-    a_ret_age = members[0]["retirement_age"]
-    a_oas_age = members[0]["oas_claim_age"]
-    for n in range(0, 16):
-        year = base_year + n
-        a_age = a_age0 + n
-        in_window = a_ret_age <= a_age < members[0].get("cpp_claim_age", 65)
-        note = "low-income meltdown window" if in_window else ""
-        if a_age >= a_oas_age:
-            note = "OAS started -- watch clawback"
-        ws.append([year, a_age, "", f"=B4-C{ws.max_row}", "", note])
-    for col, w in zip("ABCDEF", (8, 14, 18, 22, 18, 30)):
-        ws.column_dimensions[col].width = w
+    saved = base_total - best["total_tax"]
+    ws.append([f"Lifetime tax saved vs. do-nothing:", round(saved),
+               f"({100*saved/base_total:.0f}% lower) by melting ~${best['target']:,.0f}/spouse/yr "
+               f"and sweeping surplus into the TFSA"])
+    ws.cell(row=ws.max_row, column=1).font = BOLD
+    ws.cell(row=ws.max_row, column=2).font = GOODF
+    ws.append([])
+
+    # ---- optimal year-by-year schedule ----
+    sch_headers = ["Year", "A age", "B age", "Taxable income", "RRIF minimum",
+                   "Recommended melt", "Income tax", "OAS clawback", "RRSP balance"]
+    ws.append(sch_headers)
+    _header_row(ws, sch_headers)
+    for r in best["schedule"]:
+        ws.append([r["year"], r["a_age"], r["b_age"], round(r["taxable"]),
+                   round(r["forced"]), round(r["voluntary"]), round(r["tax"]),
+                   round(r["claw"]), round(r["rrsp"])])
+        if r["claw"] > 0:
+            ws.cell(row=ws.max_row, column=8).font = RED
+
+    widths = [8, 7, 7, 16, 14, 17, 13, 14, 15]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
     return ws
 
 
@@ -297,7 +499,7 @@ def build_action_plan(wb, cfg):
     items = [
         (1, "Review employer-stock concentration vs. thresholds (company_health.py)", "Recurring"),
         (2, "Max TFSA contribution room every year (tax-free growth, restored if withdrawn)", "Recurring"),
-        (3, "Map RRSP-meltdown headroom under the OAS clawback threshold", "Open"),
+        (3, "Execute the RRSP-meltdown plan (see RRSP Meltdown tab) to its lifetime-tax-optimal target", "Open"),
         (4, "Confirm RRSP -> RRIF conversion plan before Dec 31 of age 71", "Open"),
         (5, "Set up / confirm pension income splitting with spouse (up to 50%)", "Open"),
         (6, "Confirm beneficiary / successor-holder designations (TFSA successor holder; RRSP/RRIF beneficiary)", "Open"),
@@ -307,7 +509,7 @@ def build_action_plan(wb, cfg):
     for p, it, st in items:
         ws.append([p, it, st])
     ws.column_dimensions["A"].width = 10
-    ws.column_dimensions["B"].width = 72
+    ws.column_dimensions["B"].width = 78
     ws.column_dimensions["C"].width = 14
     return ws
 

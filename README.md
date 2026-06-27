@@ -39,6 +39,7 @@ splitting, individual (not joint) filing — and this toolkit encodes it directl
 | Component | File | Does |
 |---|---|---|
 | Config loader | `engine/config_loader.py` | One load point + derived math (concentration, investable total) |
+| Tax engine | `engine/tax_ca.py` | Federal + provincial (Ontario) income tax + OAS clawback; powers the meltdown optimizer |
 | Model builder | `engine/build_model.py` | Generates the multi-tab `.xlsx` from config |
 | Company health | `engine/company_health.py` | Live ticker price/analyst data → RSU/trim verdict |
 | Quarterly update | `engine/quarterly_update.py` | Rebuild + 10k-path Monte Carlo + dashboard refresh |
@@ -55,7 +56,7 @@ splitting, individual (not joint) filing — and this toolkit encodes it directl
 | **RESP** (excluded from the investable base, like a US 529) | `accounts.resp_a/b` |
 | **CPP + OAS** with independent claim ages per spouse | `government_benefits`; Income + Year-by-Year tabs |
 | **OAS clawback** as the income ceiling you plan to | `assumptions.oas_clawback_threshold`; RRSP Meltdown tab |
-| **RRSP-meltdown** ladder (the Canadian analog of a Roth-conversion ladder) | RRSP Meltdown tab |
+| **RRSP-meltdown lifetime-tax optimizer** (the Canadian analog of a Roth-conversion ladder) | RRSP Meltdown tab — searches the withdrawal path that minimizes the present value of total lifetime tax, including the terminal RRSP deemed-disposition at death |
 | **Age-71 RRIF conversion** deadline | `assumptions.rrif_conversion_age`; Action Plan |
 | **Pension income splitting** (up to 50%) | Action Plan; knowledge base |
 | **Provincial tax** (province-agnostic) | `household.province` + provincial figures in `assumptions` |

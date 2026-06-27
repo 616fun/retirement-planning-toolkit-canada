@@ -8,6 +8,7 @@ different household is a one-file swap.
 config/config.json  ─┐
                      ├─►  engine/config_loader.py  (single load point + derived math)
                      │
+                     ├─►  engine/tax_ca.py             (federal + provincial tax + OAS clawback)
                      ├─►  engine/build_model.py        → model/financial_plan.xlsx
                      ├─►  engine/company_health.py      → live ticker health + RSU verdict
                      ├─►  engine/quarterly_update.py    → rebuild + Monte Carlo + dashboard
@@ -48,8 +49,28 @@ cross-sheet formulas instead of hardcoding values. When you add a value, put it 
 | Employer Concentration | Employer-stock exposure vs. watch/trim thresholds |
 | Year-by-Year Projections | Spend, pension, CPP+OAS (phased in at each spouse's claim age), portfolio draw, EOY balance |
 | Monte Carlo | 3-scenario success rates (populated by quarterly_update.py) |
-| RRSP Meltdown | Scaffold for the OAS-clawback-headroom withdrawal plan (the Roth-ladder analog) |
+| RRSP Meltdown | **Lifetime-tax optimizer** — searches the withdrawal target that minimizes the present value of total tax (below) |
 | Action Plan | Open items and recurring checks (TFSA max, meltdown, RRIF-by-71, pension splitting, beneficiaries) |
+
+## Tax engine & meltdown optimizer (`engine/tax_ca.py` + the RRSP Meltdown tab)
+`tax_ca.py` computes combined **federal + provincial** ordinary-income tax (with the
+Basic Personal Amount and the Ontario surtax, all inflation-indexed) plus the **OAS
+Recovery Tax** (clawback). The RRSP Meltdown tab uses it to grid-search the level
+annual per-spouse RRSP/RRIF withdrawal that minimizes the **present value of total
+lifetime tax** — both spouses' in-life income tax + OAS clawback, **plus the terminal
+deemed-disposition tax** on any RRSP still standing at the horizon (the lump taxed to
+a single surviving filer, which is what makes melting early pay off). It compares
+three strategies (do-nothing / fill-to-clawback / optimal) and prints the winner's
+year-by-year plan.
+
+**Modelling scope (honest caveats).** Federal + **Ontario** are fully encoded;
+other provinces fall back to Ontario with a warning (per-province modules, esp.
+**Quebec/QPP**, are roadmapped). The optimizer assumes retirement income is
+equalized between spouses at 65+ (pension splitting / spousal RRSPs), discounts tax
+at the inflation rate, and treats non-registered + TFSA + cash as an after-tax
+buffer. It does **not** yet model non-registered **capital-gains** tax, the
+**dividend tax credit**, the federal BPA high-income phase-down, or TFSA
+contribution limits. Illustrative, not advice — see `docs/CANADA_RULES.md`.
 
 ## Cell color convention
 - **Green** text = cross-sheet link (`=Assumptions!C5`)
