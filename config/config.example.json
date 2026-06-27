@@ -1,6 +1,8 @@
 {
   "_comment": "Copy this file to config/config.json and fill in YOUR numbers. config.json is git-ignored so your real data never gets committed. Every downstream script reads from here -- this is the single source of truth for identity, accounts, and assumptions. Canadian edition: RRSP/TFSA/RRIF/LIRA/FHSA/RESP accounts, CPP + OAS benefits, provincial tax. See docs/ARCHITECTURE.md and docs/CANADA_RULES.md.",
 
+  "_language_note": "Set the user-facing output language: 'en' (default) or 'fr'. Localizes the HTML dashboard and the spreadsheet labels (CLI output stays English). French is Canadian French (RPC=CPP, SV=OAS, REER=RRSP, CELI=TFSA, FERR=RRIF).",
+  "language": "en",
   "household": {
     "name": "Your Household",
     "members": [

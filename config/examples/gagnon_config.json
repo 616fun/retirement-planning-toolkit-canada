@@ -1,6 +1,7 @@
 {
   "_comment": "FICTIONAL SAMPLE DATA -- the Gagnon household, a two-income family in Montreal, Quebec. Invented numbers (CAD) to demonstrate the QUEBEC path: Quebec brackets + higher BPA + no surtax + the 16.5% federal abatement, and QPP instead of CPP (entered in the cpp_monthly fields). Balances mirror the Ontario demo (Tremblay) so you can compare the same household across provinces. Sample employer is Canadian National Railway (CNI, NYSE-listed; HQ Montreal) so the live company-health demo pulls real market data. Run with: RPT_CONFIG=config/examples/gagnon_config.json python3 engine/build_model.py",
 
+  "language": "fr",
   "household": {
     "name": "Gagnon Household",
     "members": [

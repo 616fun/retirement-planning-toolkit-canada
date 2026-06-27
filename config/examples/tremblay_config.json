@@ -1,6 +1,7 @@
 {
   "_comment": "FICTIONAL SAMPLE DATA -- the Tremblay household, a two-income family in Ontario. Entirely invented numbers (in CAD) used to demonstrate the toolkit end to end. The sample employer is Royal Bank of Canada (RY) -- a real public company -- purely so the live company-health demo pulls real market data out of the box. Canadian issuers do not file SEC Form 4, so the insider sub-signal returns empty; price/analyst signals work. Replace everything with your own values in config/config.json.",
 
+  "language": "en",
   "household": {
     "name": "Tremblay Household",
     "members": [

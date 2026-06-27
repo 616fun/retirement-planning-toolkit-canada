@@ -51,6 +51,24 @@ def test_dashboard_renders_with_panels(name):
     assert "Monte Carlo" in html
 
 
+def test_dashboard_localized_french():
+    # The Quebec demo is configured language=fr -> French dashboard.
+    cfg = _cfg("gagnon_config.json")
+    doc = rd.render(cfg, qu.monte_carlo(cfg, n_sims=200))
+    assert 'lang="fr"' in doc
+    assert "Tableau de bord de retraite" in doc
+    assert "Valeur nette totale" in doc
+    assert "RPC/SV" in doc                       # CPP/OAS localized
+    assert "Gagnon" in doc and "Tremblay" not in doc   # banner uses the right household
+
+
+def test_dashboard_default_english():
+    cfg = _cfg("tremblay_config.json")
+    doc = rd.render(cfg, qu.monte_carlo(cfg, n_sims=200))
+    assert 'lang="en"' in doc
+    assert "Retirement Dashboard" in doc and "Total net worth" in doc
+
+
 def test_dashboard_renders_without_monte_carlo():
     # Should degrade gracefully when no MC summary is supplied.
     html = rd.render(_cfg("tremblay_config.json"), mc=None)
