@@ -1,5 +1,7 @@
 # Install Guide
 
+[Français](INSTALL.fr.md) · **English**
+
 Two ways to use this toolkit: inside **Claude Cowork** (no terminal needed) or
 from a **terminal** with Python. Both use the same `setup.py` bootstrap, which
 checks your Python, asks before installing anything, and runs a smoke test.

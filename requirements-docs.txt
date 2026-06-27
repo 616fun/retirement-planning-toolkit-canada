@@ -1,0 +1,6 @@
+# Docs-site build dependencies (the bilingual MkDocs Material site).
+#   python3 -m pip install -r requirements-docs.txt
+#   mkdocs serve     # preview locally at http://127.0.0.1:8000
+#   mkdocs build     # build the static site into ./site
+mkdocs-material>=9.5
+mkdocs-static-i18n>=1.2

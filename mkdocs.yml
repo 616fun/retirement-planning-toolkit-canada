@@ -1,0 +1,57 @@
+site_name: Canadian Retirement Planning Toolkit
+site_description: A config-driven, bilingual (EN/FR) self-managed retirement planning toolkit for Canada — RRSP/TFSA/RRIF/FHSA/RESP, CPP+OAS, OAS clawback, RRSP-meltdown optimizer.
+site_url: https://616fun.github.io/retirement-planning-toolkit-canada/
+repo_url: https://github.com/616fun/retirement-planning-toolkit-canada
+repo_name: 616fun/retirement-planning-toolkit-canada
+docs_dir: docs
+copyright: Illustrative only — not financial advice. / À titre indicatif seulement — pas un conseil financier.
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: fr
+          name: Français
+          build: true
+
+nav:
+  - Home: index.md
+  - Canada rules: CANADA_RULES.md
+  - Architecture: ARCHITECTURE.md
+  - Company health: COMPANY_HEALTH.md
+  - Quarterly workflow: QUARTERLY_WORKFLOW.md
+  - Testing: TESTING.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+extra_javascript:
+  - javascripts/lang-redirect.js

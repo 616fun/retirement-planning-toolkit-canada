@@ -1,5 +1,7 @@
 # Disclaimer
 
+[Français](DISCLAIMER.fr.md) · **English**
+
 This toolkit is provided for **educational and illustrative purposes only**. It is
 **not financial, tax, legal, or investment advice**, and nothing it produces should
 be relied upon as such.

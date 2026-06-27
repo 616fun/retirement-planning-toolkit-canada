@@ -1,7 +1,11 @@
 # Canadian Retirement Planning Toolkit 🇨🇦
 
+[Français](README.fr.md) · **English**
+
 ![CI](https://github.com/616fun/retirement-planning-toolkit-canada/actions/workflows/ci.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+
+📖 **Documentation (EN/FR):** <https://616fun.github.io/retirement-planning-toolkit-canada/>
 
 A config-driven, self-managed retirement planning kit for **Canada**: a multi-tab
 spreadsheet model, a Monte Carlo engine, an HTML dashboard, and an

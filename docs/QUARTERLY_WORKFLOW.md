@@ -23,7 +23,7 @@ A repeatable rhythm to keep the plan current.
 ## Annually
 - Refresh **federal + provincial tax brackets**, the **Basic Personal Amount**, and
   contribution limits (**RRSP dollar limit**, **TFSA annual limit**, **FHSA**) in
-  `config.json`. See [`docs/CANADA_RULES.md`](docs/CANADA_RULES.md).
+  `config.json`. See [`docs/CANADA_RULES.md`](CANADA_RULES.md).
 - Refresh the **OAS clawback threshold** (`assumptions.oas_clawback_threshold`) — it
   indexes each year and is the ceiling your RRSP-meltdown plan targets.
 - Re-verify **CPP/OAS** benefit estimates (My Service Canada Account) and your DB

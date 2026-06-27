@@ -1,5 +1,7 @@
 # Contributing
 
+[Français](CONTRIBUTING.fr.md) · **English**
+
 Thanks for your interest! This is a small, friendly project — a foundation people
 fork and adapt to their own situation. Contributions that keep it simple,
 readable, and safe are very welcome.
