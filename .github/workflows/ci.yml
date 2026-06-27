@@ -28,6 +28,12 @@ jobs:
       - name: Bootstrap (core deps, no prompt)
         run: python3 setup.py --yes --core-only
 
+      - name: Install test deps
+        run: python3 -m pip install pytest
+
+      - name: Run unit + integration tests
+        run: python3 -m pytest tests/ -q
+
       - name: Build the model (demo config)
         run: python3 engine/build_model.py
 

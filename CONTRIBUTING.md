@@ -24,18 +24,24 @@ readable, and safe are very welcome.
 ```bash
 python3 setup.py            # checks Python, installs deps, runs a smoke test
 python3 engine/quarterly_update.py   # runs the demo end to end
+
+python3 -m pip install -r requirements-dev.txt   # pytest
+python3 -m pytest tests/ -q                       # run the test suite
 ```
 
-The fictional "Tremblay household" (`config/examples/tremblay_config.json`) is the
-demo fixture — please test changes against it so the demo always runs clean.
+The fictional "Tremblay household" (`config/examples/tremblay_config.json`, Ontario)
+and "Gagnon household" (`config/examples/gagnon_config.json`, Quebec) are the demo
+fixtures — please test changes against both so the demos always run clean. See
+[`docs/TESTING.md`](docs/TESTING.md) for what's covered.
 
 ## Making a change
 
 1. Fork the repo and create a branch (`git checkout -b my-change`).
 2. Make your change. Keep functions small and readable; match the existing style.
-3. Run the demo (`python3 engine/quarterly_update.py` and
-   `python3 engine/company_health.py`) and confirm nothing breaks. The CI
-   workflow runs the same demo on Python 3.9–3.12.
+3. Run `python3 -m pytest tests/ -q` and the demo
+   (`python3 engine/quarterly_update.py`) and confirm nothing breaks. The CI
+   workflow runs the test suite **and** the demo on Python 3.9–3.12; add a test
+   for any new behaviour.
 4. Open a pull request describing what changed and why. Screenshots help for
    anything that affects the dashboard.
 

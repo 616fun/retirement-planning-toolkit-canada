@@ -138,6 +138,7 @@ anything matching `*credentials*`.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the pieces fit together
 - [`docs/COMPANY_HEALTH.md`](docs/COMPANY_HEALTH.md) — the employer-stock monitor
 - [`docs/QUARTERLY_WORKFLOW.md`](docs/QUARTERLY_WORKFLOW.md) — the quarterly rhythm
+- [`docs/TESTING.md`](docs/TESTING.md) — the pytest suite and what it covers
 
 ## License
 MIT — see [`LICENSE`](LICENSE).
