@@ -28,6 +28,7 @@ from config_loader import (  # noqa: E402
     current_age,
 )
 import tax_ca  # noqa: E402
+from i18n import t, lang_of  # noqa: E402
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -83,8 +84,14 @@ def _header_row(ws, cells, row=None):
         c.border = BORDER
 
 
-def _acct_label(key):
-    """Human label for a Canadian account key (keeps RRSP/TFSA/etc. uppercase)."""
+def _acct_label(key, lang="en"):
+    """Localized human label for an account/holding/real-estate key.
+
+    Looks the key up in the locale files (acct.<key>); falls back to a title-cased
+    English derivation (with acronyms fixed) for any key not in the table."""
+    label = t(f"acct.{key}", lang)
+    if label != f"acct.{key}":
+        return label
     pretty = key.replace("_", " ").title()
     for word, repl in (("Rrsp", "RRSP"), ("Tfsa", "TFSA"), ("Rrif", "RRIF"),
                        ("Lira", "LIRA"), ("Fhsa", "FHSA"), ("Resp", "RESP"),
@@ -94,49 +101,54 @@ def _acct_label(key):
 
 
 def build_assumptions(wb, cfg):
+    lang = lang_of(cfg)
     ws = wb.create_sheet("Assumptions")
-    _title(ws, "Assumptions -- SINGLE SOURCE OF TRUTH")
+    _title(ws, t("wb.assumptions.title", lang))
     a = cfg["assumptions"]
     inc = cfg["income"]
     gb = cfg["government_benefits"]
     members = cfg["household"]["members"]
+    na, nb = members[0]["display_name"], members[1]["display_name"]
+
+    def L(k):  # localized assumption label / note shorthand
+        return t(k, lang)
 
     rows = [
-        ("Key", "Value", "Notes"),
-        ("Portfolio return (base)", a["portfolio_return_base"], "Monte Carlo mu"),
-        ("Portfolio return (conservative)", a["portfolio_return_conservative"], ""),
-        ("Portfolio return (optimistic)", a["portfolio_return_optimistic"], ""),
-        ("Inflation", a["inflation_rate"], "bracket + spend scaling"),
-        ("Province", cfg["household"]["province"], "provincial tax jurisdiction"),
-        ("Basic personal amount (federal)", a["basic_personal_amount_federal"], "non-refundable credit base"),
-        ("Provincial basic personal amount", a.get("provincial_basic_personal_amount", 0), ""),
-        ("OAS clawback threshold (net income)", a["oas_clawback_threshold"], "RRSP-meltdown ceiling -- the Canadian IRMAA analog"),
-        ("OAS full-clawback income", a.get("oas_full_clawback", 0), "OAS fully recovered above this"),
-        ("RRIF conversion age", a.get("rrif_conversion_age", 71), "RRSP must convert to RRIF by Dec 31 of this age"),
-        ("Capital gains inclusion rate", a.get("capital_gains_inclusion_rate", 0.5), "taxable portion of a gain"),
-        ("RRSP dollar limit (year)", a.get("rrsp_dollar_limit", 0), "or 18% of earned income"),
-        ("TFSA annual limit (year)", a.get("tfsa_annual_limit", 0), ""),
-        ("Retirement spend (annual, today $)", a["retirement_spend_annual"], ""),
-        ("Target equity %", a["target_equity_pct"], ""),
-        ("Target bond %", a["target_bond_pct"], ""),
-        ("Bridge target", a["bridge_target"], "pre-CPP/OAS bridge"),
-        ("Pension monthly at retirement", inc["pension_monthly_at_retirement"], "employer DB pension"),
-        ("Pension COLA", inc["pension_cola"], ""),
-        ("Passive income (annual)", inc["passive_income_annual"], ""),
-        (f"{members[0]['display_name']} salary", inc["spouse_a_salary"], ""),
-        (f"{members[0]['display_name']} bonus %", inc["spouse_a_bonus_pct"], ""),
-        (f"{members[0]['display_name']} RSU annual", inc["spouse_a_rsu_annual"], ""),
-        (f"{members[1]['display_name']} income", inc["spouse_b_annual"], ""),
-        (f"{members[0]['display_name']} retirement age", members[0]["retirement_age"], ""),
-        (f"{members[1]['display_name']} retirement age", members[1]["retirement_age"], ""),
-        (f"{members[0]['display_name']} CPP claim age", members[0]["cpp_claim_age"], "60-70 (std 65)"),
-        (f"{members[0]['display_name']} OAS claim age", members[0]["oas_claim_age"], "65-70"),
-        (f"{members[1]['display_name']} CPP claim age", members[1]["cpp_claim_age"], ""),
-        (f"{members[1]['display_name']} OAS claim age", members[1]["oas_claim_age"], ""),
-        (f"{members[0]['display_name']} CPP monthly", gb["spouse_a_cpp_monthly"], ""),
-        (f"{members[0]['display_name']} OAS monthly", gb["spouse_a_oas_monthly"], ""),
-        (f"{members[1]['display_name']} CPP monthly", gb["spouse_b_cpp_monthly"], ""),
-        (f"{members[1]['display_name']} OAS monthly", gb["spouse_b_oas_monthly"], ""),
+        (L("col.key"), L("col.value"), L("col.notes")),
+        (L("asm.ret_base"), a["portfolio_return_base"], L("asmn.mc_mu")),
+        (L("asm.ret_cons"), a["portfolio_return_conservative"], ""),
+        (L("asm.ret_opt"), a["portfolio_return_optimistic"], ""),
+        (L("asm.inflation"), a["inflation_rate"], L("asmn.bracket_scaling")),
+        (L("asm.province"), cfg["household"]["province"], L("asmn.prov_juris")),
+        (L("asm.bpa_fed"), a["basic_personal_amount_federal"], L("asmn.nonref")),
+        (L("asm.bpa_prov"), a.get("provincial_basic_personal_amount", 0), ""),
+        (L("asm.oas_thresh"), a["oas_clawback_threshold"], L("asmn.meltdown_ceiling")),
+        (L("asm.oas_full"), a.get("oas_full_clawback", 0), L("asmn.oas_full")),
+        (L("asm.rrif_age"), a.get("rrif_conversion_age", 71), L("asmn.rrif_age")),
+        (L("asm.capgains"), a.get("capital_gains_inclusion_rate", 0.5), L("asmn.capgains")),
+        (L("asm.rrsp_limit"), a.get("rrsp_dollar_limit", 0), L("asmn.rrsp_limit")),
+        (L("asm.tfsa_limit"), a.get("tfsa_annual_limit", 0), ""),
+        (L("asm.spend"), a["retirement_spend_annual"], ""),
+        (L("asm.eq"), a["target_equity_pct"], ""),
+        (L("asm.bond"), a["target_bond_pct"], ""),
+        (L("asm.bridge"), a["bridge_target"], L("asmn.bridge")),
+        (L("asm.pension_m"), inc["pension_monthly_at_retirement"], L("asmn.db_pension")),
+        (L("asm.cola"), inc["pension_cola"], ""),
+        (L("asm.passive"), inc["passive_income_annual"], ""),
+        (f"{na} {L('asm.s.salary')}", inc["spouse_a_salary"], ""),
+        (f"{na} {L('asm.s.bonus')}", inc["spouse_a_bonus_pct"], ""),
+        (f"{na} {L('asm.s.rsu')}", inc["spouse_a_rsu_annual"], ""),
+        (f"{nb} {L('asm.s.income')}", inc["spouse_b_annual"], ""),
+        (f"{na} {L('asm.s.ret_age')}", members[0]["retirement_age"], ""),
+        (f"{nb} {L('asm.s.ret_age')}", members[1]["retirement_age"], ""),
+        (f"{na} {L('asm.s.cpp_age')}", members[0]["cpp_claim_age"], L("asmn.cpp_range")),
+        (f"{na} {L('asm.s.oas_age')}", members[0]["oas_claim_age"], L("asmn.oas_range")),
+        (f"{nb} {L('asm.s.cpp_age')}", members[1]["cpp_claim_age"], ""),
+        (f"{nb} {L('asm.s.oas_age')}", members[1]["oas_claim_age"], ""),
+        (f"{na} {L('asm.s.cpp_m')}", gb["spouse_a_cpp_monthly"], ""),
+        (f"{na} {L('asm.s.oas_m')}", gb["spouse_a_oas_monthly"], ""),
+        (f"{nb} {L('asm.s.cpp_m')}", gb["spouse_b_cpp_monthly"], ""),
+        (f"{nb} {L('asm.s.oas_m')}", gb["spouse_b_oas_monthly"], ""),
     ]
     start = ws.max_row + 1
     for i, r in enumerate(rows):
@@ -153,24 +165,25 @@ def build_assumptions(wb, cfg):
 
 
 def build_net_worth(wb, cfg):
+    lang = lang_of(cfg)
     ws = wb.create_sheet("Net Worth Snapshot")
-    _title(ws, "Net Worth Snapshot")
-    ws.append(["Account", "Balance"])
-    _header_row(ws, ["Account", "Balance"])
+    _title(ws, t("wb.networth.title", lang))
+    ws.append([t("col.account", lang), t("col.balance", lang)])
+    _header_row(ws, [t("col.account", lang), t("col.balance", lang)])
     first_data = ws.max_row + 1
     for k, v in cfg["accounts"].items():
-        ws.append([_acct_label(k), v])
+        ws.append([_acct_label(k, lang), v])
         ws.cell(row=ws.max_row, column=2).font = BLUE
     for k, v in cfg["real_estate"].items():
         if v:
-            ws.append([k.replace("_", " ").title(), v])
+            ws.append([_acct_label(k, lang), v])
             ws.cell(row=ws.max_row, column=2).font = BLUE
     last_data = ws.max_row
-    ws.append(["TOTAL NET WORTH", f"=SUM(B{first_data}:B{last_data})"])
+    ws.append([t("nw.total", lang), f"=SUM(B{first_data}:B{last_data})"])
     ws.cell(row=ws.max_row, column=1).font = BOLD
     ws.cell(row=ws.max_row, column=2).font = BLACK
     inv = investable_total(cfg)
-    ws.append(["Investable total (excl. RESP + real estate)", inv])
+    ws.append([t("nw.investable", lang), inv])
     ws.cell(row=ws.max_row, column=2).font = BLUE
     ws.column_dimensions["A"].width = 38
     ws.column_dimensions["B"].width = 16
@@ -178,30 +191,31 @@ def build_net_worth(wb, cfg):
 
 
 def build_concentration(wb, cfg):
-    ws = wb.create_sheet("Employer Concentration")
-    _title(ws, f"Employer Concentration -- {cfg['employer_stock']['employer_name']} "
-               f"({cfg['employer_stock']['ticker']})")
+    lang = lang_of(cfg)
     es = cfg["employer_stock"]
-    ws.append(["Sleeve", "Value"])
-    _header_row(ws, ["Sleeve", "Value"])
+    ws = wb.create_sheet("Employer Concentration")
+    _title(ws, t("wb.conc.title", lang, emp=es["employer_name"], tk=es["ticker"]))
+    ws.append([t("col.sleeve", lang), t("col.value", lang)])
+    _header_row(ws, [t("col.sleeve", lang), t("col.value", lang)])
     for k, v in es["holdings"].items():
-        ws.append([_acct_label(k), v])
+        ws.append([_acct_label(k, lang), v])
         ws.cell(row=ws.max_row, column=2).font = BLUE
-    ws.append(["Total employer exposure", employer_stock_total(cfg)])
+    ws.append([t("conc.total_exposure", lang), employer_stock_total(cfg)])
     ws.cell(row=ws.max_row, column=1).font = BOLD
-    ws.append(["Investable total", investable_total(cfg)])
-    ws.append(["Concentration %", employer_concentration_pct(cfg)])
+    ws.append([t("conc.investable_total", lang), investable_total(cfg)])
+    ws.append([t("conc.concentration_pct", lang), employer_concentration_pct(cfg)])
     ws.cell(row=ws.max_row, column=1).font = BOLD
-    ws.append(["Watch threshold %", es["watch_threshold_pct"]])
-    ws.append(["Trim threshold %", es["trim_threshold_pct"]])
+    ws.append([t("conc.watch_threshold", lang), es["watch_threshold_pct"]])
+    ws.append([t("conc.trim_threshold", lang), es["trim_threshold_pct"]])
     ws.column_dimensions["A"].width = 30
     ws.column_dimensions["B"].width = 16
     return ws
 
 
 def build_year_by_year(wb, cfg):
+    lang = lang_of(cfg)
     ws = wb.create_sheet("Year-by-Year Projections")
-    _title(ws, "Year-by-Year Projections (simplified)")
+    _title(ws, t("wb.yby.title", lang))
     members = cfg["household"]["members"]
     a = cfg["assumptions"]
     spend0 = a["retirement_spend_annual"]
@@ -215,8 +229,9 @@ def build_year_by_year(wb, cfg):
     cpp_b = gb["spouse_b_cpp_monthly"] * 12
     oas_b = gb["spouse_b_oas_monthly"] * 12
 
-    headers = ["Year", "Spouse A age", "Spouse B age", "Spend (infl-adj)",
-               "Pension", "Passive", "CPP + OAS", "Portfolio draw", "Portfolio EOY"]
+    headers = [t("yby.year", lang), t("yby.age_a", lang), t("yby.age_b", lang),
+               t("yby.spend", lang), t("yby.pension", lang), t("yby.passive", lang),
+               t("yby.cpp_oas", lang), t("yby.draw", lang), t("yby.eoy", lang)]
     ws.append(headers)
     _header_row(ws, headers)
 
@@ -254,15 +269,19 @@ def build_year_by_year(wb, cfg):
 
 
 def build_monte_carlo(wb, cfg):
+    lang = lang_of(cfg)
     ws = wb.create_sheet("Monte Carlo")
-    _title(ws, "Monte Carlo (summary -- run engine/quarterly_update.py to refresh)")
-    ws.append(["Scenario", "Return mu", "Success rate", "Note"])
-    _header_row(ws, ["Scenario", "Return mu", "Success rate", "Note"])
+    _title(ws, t("wb.mc.title", lang))
+    hdr = [t("mc.col.scenario", lang), t("mc.col.return_mu", lang),
+           t("mc.col.success_rate", lang), t("mc.col.note", lang)]
+    ws.append(hdr)
+    _header_row(ws, hdr)
     a = cfg["assumptions"]
-    for label, mu in [("Conservative", a["portfolio_return_conservative"]),
-                      ("Base", a["portfolio_return_base"]),
-                      ("Optimistic", a["portfolio_return_optimistic"])]:
-        ws.append([label, mu, "(pending)", "populated by quarterly_update.py"])
+    for key, mu in [("conservative", a["portfolio_return_conservative"]),
+                    ("base", a["portfolio_return_base"]),
+                    ("optimistic", a["portfolio_return_optimistic"])]:
+        ws.append([t(f"scenario.{key}", lang), mu,
+                   t("mc.cell.pending", lang), t("mc.cell.pending_note", lang)])
     ws.column_dimensions["A"].width = 16
     ws.column_dimensions["D"].width = 40
     return ws
@@ -452,49 +471,48 @@ def build_meltdown(wb, cfg):
     non-registered capital-gains tax, the dividend tax credit, or TFSA contribution
     limits. Illustrative, not advice.
     """
+    lang = lang_of(cfg)
     ws = wb.create_sheet("RRSP Meltdown")
-    _title(ws, "RRSP Meltdown -- Lifetime-Tax Optimizer")
+    _title(ws, t("wb.meltdown.title", lang))
     prov = cfg["household"]["province"]
 
     none = _simulate_meltdown(cfg, "none")
     claw = _simulate_meltdown(cfg, "clawback")
     best = _optimize_meltdown(cfg)
 
-    ws.append([f"Objective: minimize TOTAL lifetime tax (both spouses' income tax + OAS clawback, "
-               f"plus terminal RRSP tax at death). Province: {prov}. See docs/CANADA_RULES.md."])
+    ws.append([t("mlt.objective", lang, prov=prov)])
     ws.append([])
 
     # ---- strategy comparison ----
-    cmp_headers = ["Strategy", "Per-spouse target", "In-life tax (PV)", "Terminal RRSP tax (PV)",
-                   "TOTAL lifetime tax (PV)", "RRSP at horizon", "Estate at horizon"]
+    cmp_headers = [t("mlt.col.strategy", lang), t("mlt.col.target", lang), t("mlt.col.inlife", lang),
+                   t("mlt.col.terminal", lang), t("mlt.col.total", lang),
+                   t("mlt.col.rrsp_horizon", lang), t("mlt.col.estate_horizon", lang)]
     ws.append(cmp_headers)
     _header_row(ws, cmp_headers)
     rows = [
-        ("Do nothing (RRIF minimums only)", "n/a", none),
-        ("Fill to OAS clawback line", "clawback line", claw),
-        ("Lifetime-tax optimal", f"${best['target']:,.0f}/yr", best),
+        (t("mlt.strat.none", lang), t("mlt.target.na", lang), none),
+        (t("mlt.strat.clawback", lang), t("mlt.target.clawback", lang), claw),
+        (t("mlt.strat.optimal", lang), t("mlt.target.per_year", lang, v=f"{best['target']:,.0f}"), best),
     ]
     base_total = none["total_tax"]
-    optimal_row = None
     for label, tgt, r in rows:
         ws.append([label, tgt, round(r["lifetime_tax"]), round(r["terminal_tax"]),
                    round(r["total_tax"]), round(r["rrsp_end"]), round(r["estate_end"])])
         if r is best:
-            optimal_row = ws.max_row
             for c in range(1, len(cmp_headers) + 1):
                 ws.cell(row=ws.max_row, column=c).font = GOODF
     ws.append([])
     saved = base_total - best["total_tax"]
-    ws.append([f"Lifetime tax saved vs. do-nothing:", round(saved),
-               f"({100*saved/base_total:.0f}% lower) by melting ~${best['target']:,.0f}/spouse/yr "
-               f"and sweeping surplus into the TFSA"])
+    ws.append([t("mlt.saved_label", lang), round(saved),
+               t("mlt.saved_note", lang, pct=f"{100*saved/base_total:.0f}", amt=f"{best['target']:,.0f}")])
     ws.cell(row=ws.max_row, column=1).font = BOLD
     ws.cell(row=ws.max_row, column=2).font = GOODF
     ws.append([])
 
     # ---- optimal year-by-year schedule ----
-    sch_headers = ["Year", "A age", "B age", "Taxable income", "RRIF minimum",
-                   "Recommended melt", "Income tax", "OAS clawback", "RRSP balance"]
+    sch_headers = [t("mlt.sch.year", lang), t("mlt.sch.age_a", lang), t("mlt.sch.age_b", lang),
+                   t("mlt.sch.taxable", lang), t("mlt.sch.rrif_min", lang), t("mlt.sch.melt", lang),
+                   t("mlt.sch.income_tax", lang), t("mlt.sch.clawback", lang), t("mlt.sch.rrsp_bal", lang)]
     ws.append(sch_headers)
     _header_row(ws, sch_headers)
     for r in best["schedule"]:
@@ -511,19 +529,22 @@ def build_meltdown(wb, cfg):
 
 
 def build_action_plan(wb, cfg):
+    lang = lang_of(cfg)
+    rec, opn = t("status.recurring", lang), t("status.open", lang)
     ws = wb.create_sheet("Action Plan")
-    _title(ws, "Action Plan")
-    ws.append(["Priority", "Item", "Status"])
-    _header_row(ws, ["Priority", "Item", "Status"])
+    _title(ws, t("wb.action.title", lang))
+    hdr = [t("col.priority", lang), t("col.item", lang), t("col.status", lang)]
+    ws.append(hdr)
+    _header_row(ws, hdr)
     items = [
-        (1, "Review employer-stock concentration vs. thresholds (company_health.py)", "Recurring"),
-        (2, "Max TFSA contribution room every year (tax-free growth, restored if withdrawn)", "Recurring"),
-        (3, "Execute the RRSP-meltdown plan (see RRSP Meltdown tab) to its lifetime-tax-optimal target", "Open"),
-        (4, "Confirm RRSP -> RRIF conversion plan before Dec 31 of age 71", "Open"),
-        (5, "Set up / confirm pension income splitting with spouse (up to 50%)", "Open"),
-        (6, "Confirm beneficiary / successor-holder designations (TFSA successor holder; RRSP/RRIF beneficiary)", "Open"),
-        (7, "Verify DB pension survivor-benefit election (joint-and-survivor)", "Open"),
-        (8, "Rebalance toward target equity/bond split", "Recurring"),
+        (1, t("action.concentration", lang), rec),
+        (2, t("action.tfsa", lang), rec),
+        (3, t("action.meltdown", lang), opn),
+        (4, t("action.rrif", lang), opn),
+        (5, t("action.splitting", lang), opn),
+        (6, t("action.beneficiary", lang), opn),
+        (7, t("action.survivor", lang), opn),
+        (8, t("action.rebalance", lang), rec),
     ]
     for p, it, st in items:
         ws.append([p, it, st])
@@ -534,24 +555,27 @@ def build_action_plan(wb, cfg):
 
 
 def build_income_note(wb, cfg):
+    lang = lang_of(cfg)
     ws = wb.create_sheet("Income Streams")
-    _title(ws, "Income Streams")
-    ws.append(["Stream", "Annual", "Notes"])
-    _header_row(ws, ["Stream", "Annual", "Notes"])
+    _title(ws, t("wb.income.title", lang))
+    hdr = [t("col.stream", lang), t("col.annual", lang), t("col.notes", lang)]
+    ws.append(hdr)
+    _header_row(ws, hdr)
     inc = cfg["income"]
     gb = cfg["government_benefits"]
     m = cfg["household"]["members"]
+    na, nb = m[0]["display_name"], m[1]["display_name"]
     rows = [
-        (f"{m[0]['display_name']} salary", inc["spouse_a_salary"], ""),
-        (f"{m[0]['display_name']} bonus", round(inc["spouse_a_salary"] * inc["spouse_a_bonus_pct"]), ""),
-        (f"{m[0]['display_name']} RSU", inc["spouse_a_rsu_annual"], "employer stock -- see concentration tab"),
-        (f"{m[1]['display_name']} income", inc["spouse_b_annual"], ""),
-        ("Pension (annual at retirement)", inc["pension_monthly_at_retirement"] * 12, "employer DB pension"),
-        (f"{m[0]['display_name']} CPP (annual)", gb["spouse_a_cpp_monthly"] * 12, f"claim age {m[0]['cpp_claim_age']}"),
-        (f"{m[0]['display_name']} OAS (annual)", gb["spouse_a_oas_monthly"] * 12, f"claim age {m[0]['oas_claim_age']}; clawback applies"),
-        (f"{m[1]['display_name']} CPP (annual)", gb["spouse_b_cpp_monthly"] * 12, f"claim age {m[1]['cpp_claim_age']}"),
-        (f"{m[1]['display_name']} OAS (annual)", gb["spouse_b_oas_monthly"] * 12, f"claim age {m[1]['oas_claim_age']}; clawback applies"),
-        ("Passive income", inc["passive_income_annual"], ""),
+        (f"{na} {t('asm.s.salary', lang)}", inc["spouse_a_salary"], ""),
+        (f"{na} {t('inc.s.bonus', lang)}", round(inc["spouse_a_salary"] * inc["spouse_a_bonus_pct"]), ""),
+        (f"{na} {t('inc.s.rsu', lang)}", inc["spouse_a_rsu_annual"], t("inc.rsu_note", lang)),
+        (f"{nb} {t('inc.s.income', lang)}", inc["spouse_b_annual"], ""),
+        (t("inc.pension", lang), inc["pension_monthly_at_retirement"] * 12, t("asmn.db_pension", lang)),
+        (f"{na} {t('inc.s.cpp', lang)}", gb["spouse_a_cpp_monthly"] * 12, t("inc.claim_age", lang, age=m[0]["cpp_claim_age"])),
+        (f"{na} {t('inc.s.oas', lang)}", gb["spouse_a_oas_monthly"] * 12, t("inc.claim_age_claw", lang, age=m[0]["oas_claim_age"])),
+        (f"{nb} {t('inc.s.cpp', lang)}", gb["spouse_b_cpp_monthly"] * 12, t("inc.claim_age", lang, age=m[1]["cpp_claim_age"])),
+        (f"{nb} {t('inc.s.oas', lang)}", gb["spouse_b_oas_monthly"] * 12, t("inc.claim_age_claw", lang, age=m[1]["oas_claim_age"])),
+        (t("inc.passive", lang), inc["passive_income_annual"], ""),
     ]
     for r in rows:
         ws.append(r)

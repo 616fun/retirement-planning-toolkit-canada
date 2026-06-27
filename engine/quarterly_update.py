@@ -99,20 +99,24 @@ def monte_carlo(cfg, n_sims=10000, years=30, seed=42):
 
 def stamp_mc(xlsx_path, mc):
     from openpyxl import load_workbook
+    import i18n
     wb = load_workbook(xlsx_path)
     if "Monte Carlo" not in wb.sheetnames:
         return
     ws = wb["Monte Carlo"]
-    label_to_row = {}
+    # The MC scenario labels are localized, so match against every locale's text
+    # back to the canonical key ("conservative"/"base"/"optimistic").
+    label_to_key = {}
+    for key in ("conservative", "base", "optimistic"):
+        for lng in ("en", "fr"):
+            label_to_key[i18n.t(f"scenario.{key}", lng)] = key
     for row in ws.iter_rows(min_col=1, max_col=1):
-        v = row[0].value
-        if v in ("Conservative", "Base", "Optimistic"):
-            label_to_row[v.lower()] = row[0].row
-    for label, row in label_to_row.items():
-        if label in mc:
-            ws.cell(row=row, column=3, value=f"{mc[label]['success_rate']}%")
-            ws.cell(row=row, column=4,
-                    value=f"median end ${mc[label]['median_end_balance']:,}")
+        key = label_to_key.get(row[0].value)
+        if key and key in mc:
+            r = row[0].row
+            ws.cell(row=r, column=3, value=f"{mc[key]['success_rate']}%")
+            ws.cell(row=r, column=4,
+                    value=f"${mc[key]['median_end_balance']:,}")
     wb.save(xlsx_path)
 
 

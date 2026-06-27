@@ -69,6 +69,36 @@ def test_dashboard_default_english():
     assert "Retirement Dashboard" in doc and "Total net worth" in doc
 
 
+def test_workbook_localized_french():
+    cfg = _cfg("gagnon_config.json")           # configured language=fr
+    wb = bm.build(cfg)
+    # sheet/tab names stay English (stable identifiers used by stamp_mc)
+    assert EXPECTED_SHEETS.issubset(set(wb.sheetnames))
+    assert wb["Assumptions"]["A1"].value.startswith("Hypothèses")
+    assert wb["Net Worth Snapshot"]["A4"].value == "REER conjoint A"   # spouse_a_rrsp localized
+    assert wb["RRSP Meltdown"]["A1"].value.startswith("Fonte du REER")
+
+
+def test_workbook_default_english():
+    cfg = _cfg("tremblay_config.json")
+    wb = bm.build(cfg)
+    assert wb["Assumptions"]["A1"].value.startswith("Assumptions")
+    assert wb["Net Worth Snapshot"]["A4"].value == "Spouse A RRSP"
+
+
+def test_mc_stamping_is_locale_aware(tmp_path):
+    # The French workbook has localized scenario rows; stamp_mc must still find
+    # and populate them (it keys off every locale's label, not just English).
+    import openpyxl
+    cfg = _cfg("gagnon_config.json")
+    out = tmp_path / "fr.xlsx"
+    bm.build(cfg).save(out)
+    qu.stamp_mc(str(out), qu.monte_carlo(cfg, n_sims=200))
+    ws = openpyxl.load_workbook(out)["Monte Carlo"]
+    stamped = {r[0].value: r[2].value for r in ws.iter_rows(min_row=4, max_row=6)}
+    assert "Prudent" in stamped and stamped["Prudent"].endswith("%")
+
+
 def test_dashboard_renders_without_monte_carlo():
     # Should degrade gracefully when no MC summary is supplied.
     html = rd.render(_cfg("tremblay_config.json"), mc=None)

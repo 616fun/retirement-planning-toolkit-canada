@@ -1,4 +1,4 @@
-"""Unit tests for the i18n string table and helpers."""
+"""Unit tests for the i18n loader and the JSON locale files."""
 import i18n
 
 
@@ -27,7 +27,13 @@ def test_lang_of():
     assert i18n.lang_of({"language": None}) == "en"
 
 
-def test_every_string_has_english():
-    # English is the fallback; a missing "en" would break t() for that key.
-    missing = [k for k, v in i18n.STRINGS.items() if "en" not in v]
-    assert not missing, f"strings missing English: {missing}"
+def test_french_has_every_english_key():
+    # Drift guard: every English (canonical) key must exist in French, so nothing
+    # silently falls back to English in the localized product.
+    missing = i18n.keys("en") - i18n.keys("fr")
+    assert not missing, f"fr.json missing keys: {sorted(missing)}"
+
+
+def test_no_extra_french_keys():
+    extra = i18n.keys("fr") - i18n.keys("en")
+    assert not extra, f"fr.json has keys not in en.json (typos?): {sorted(extra)}"
