@@ -1,0 +1,44 @@
+name: CI
+
+# Proves the toolkit installs and the demo runs end-to-end on clean machines,
+# across supported Python versions, before anyone clones it. Uses --core-only
+# so the build never depends on flaky external market/EDGAR endpoints.
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Bootstrap (core deps, no prompt)
+        run: python3 setup.py --yes --core-only
+
+      - name: Build the model (demo config)
+        run: python3 engine/build_model.py
+
+      - name: Quarterly update + Monte Carlo + dashboard
+        run: python3 engine/quarterly_update.py --sims 2000
+
+      - name: Company-health logic (offline-safe; concentration verdict)
+        run: python3 engine/company_health.py || true
+
+      - name: Assert demo artifacts were produced
+        run: |
+          test -f model/financial_plan.xlsx
+          test -f dashboard/dashboard.html
+          echo "Demo artifacts present."

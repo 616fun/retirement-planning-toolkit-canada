@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# CRITICAL: keep personal data and secrets out of git.
+# The toolkit reads YOUR data from config/config.json and the files below.
+# None of these should ever be committed. Only the *.example / *_TEMPLATE
+# versions and the fictional examples/ folder are tracked.
+# ---------------------------------------------------------------------------
+
+# Your real configuration (copy of config.example.json)
+config/config.json
+
+# Generated / personal data artifacts
+model/*.xlsx
+model/*.xls
+dashboard/dashboard.html
+dashboard/*.bak
+market_intelligence.json
+weekly_pulse_latest.json
+weekly_pulse_history.jsonl
+quarterly_input_Q*.json
+quarterly_manifest.json
+mc_trajectory.json
+mc_summary.json
+*_mc_summary.json
+model/mc_summary.json
+
+# Statements, tax docs, contracts, any source documents -- NEVER commit
+Statements/
+Taxes/
+Contracts/
+Backups/
+documents/
+*.pdf
+
+# Secrets / credentials
+*credentials*.json
+*.env
+.env
+secrets.*
+
+# Python
+__pycache__/
+*.pyc
+pylibs/
+.venv/
+venv/
+
+# OS
+.DS_Store
+.~lock.*#

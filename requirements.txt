@@ -1,0 +1,13 @@
+# Core
+openpyxl>=3.1          # read/write the .xlsx model
+numpy>=1.24            # Monte Carlo simulation
+
+# Company-health module (optional but recommended)
+yfinance>=0.2.40       # market data: price, returns, valuation, analyst targets
+edgartools>=5.0        # SEC EDGAR Form 4 / 8-K / 144 filings (insider + events)
+
+# Notes:
+#  - All network calls are to free, public data sources (Yahoo Finance, SEC EDGAR).
+#  - No API keys are required. EDGAR only needs a contact identity string,
+#    which you set in config/config.json (see employer_stock + docs/COMPANY_HEALTH.md).
+#  - LibreOffice (optional) is used to recalculate xlsx formulas headlessly.

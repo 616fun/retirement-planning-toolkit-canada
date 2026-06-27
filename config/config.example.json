@@ -1,0 +1,98 @@
+{
+  "_comment": "Copy this file to config/config.json and fill in YOUR numbers. config.json is git-ignored so your real data never gets committed. Every downstream script reads from here -- this is the single source of truth for identity, accounts, and assumptions. Canadian edition: RRSP/TFSA/RRIF/LIRA/FHSA/RESP accounts, CPP + OAS benefits, provincial tax. See docs/ARCHITECTURE.md and docs/CANADA_RULES.md.",
+
+  "household": {
+    "name": "Your Household",
+    "members": [
+      { "id": "spouse_a", "display_name": "Person A", "birth_year": 1975, "retirement_age": 60, "cpp_claim_age": 65, "oas_claim_age": 65 },
+      { "id": "spouse_b", "display_name": "Person B", "birth_year": 1973, "retirement_age": 62, "cpp_claim_age": 70, "oas_claim_age": 70 }
+    ],
+    "filing": "individual",
+    "province": "ON",
+    "_province_note": "Canada files individually (no joint return). Provincial tax brackets differ by province -- this toolkit is province-agnostic: set your province here and your provincial figures in assumptions. ON = Ontario (the demo default).",
+    "pension_income_splitting": true
+  },
+
+  "employer_stock": {
+    "_comment": "Drives the company-health / RSU module. ticker can be any public company (use the NYSE listing for Canadian cross-listed names, e.g. RY, SHOP, ENB, for best yfinance coverage). sec_identity is only used for the US SEC EDGAR insider lookup -- Canadian-domiciled issuers do not file SEC Form 4, so that sub-signal returns empty; price/analyst signals still work. See docs/COMPANY_HEALTH.md.",
+    "employer_name": "Your Employer",
+    "ticker": "TICKER",
+    "sec_identity": "Your Name you@example.com",
+    "major_holder_flag_name": null,
+    "watch_threshold_pct": 5.0,
+    "trim_threshold_pct": 7.0,
+    "holdings": {
+      "employer_stock_in_rrsp": 0,
+      "unvested_rsu_value": 0,
+      "vested_shares_value": 0
+    }
+  },
+
+  "accounts": {
+    "spouse_a_rrsp": 0,
+    "spouse_a_tfsa": 0,
+    "spouse_a_lira": 0,
+    "spouse_a_fhsa": 0,
+    "spouse_a_non_registered": 0,
+    "spouse_b_rrsp": 0,
+    "spouse_b_tfsa": 0,
+    "spouse_b_lira": 0,
+    "spouse_b_fhsa": 0,
+    "spouse_b_non_registered": 0,
+    "joint_non_registered": 0,
+    "cash_and_gics": 0,
+    "resp_a": 0,
+    "resp_b": 0
+  },
+
+  "real_estate": {
+    "primary_residence": 0,
+    "other_property": 0
+  },
+
+  "income": {
+    "spouse_a_salary": 0,
+    "spouse_a_bonus_pct": 0.0,
+    "spouse_a_rsu_annual": 0,
+    "spouse_b_annual": 0,
+    "pension_monthly_at_retirement": 0,
+    "pension_cola": 0.02,
+    "passive_income_annual": 0
+  },
+
+  "government_benefits": {
+    "_comment": "CPP and OAS are separate benefits with separate claim ages (set per member above). Enter the ESTIMATED monthly amount at the claim age you plan to use. CPP: claim 60-70 (standard 65). OAS: claim 65-70, and is subject to the OAS Recovery Tax (clawback) above the income threshold in assumptions. Quebec residents: enter QPP in the CPP field.",
+    "spouse_a_cpp_monthly": 0,
+    "spouse_a_oas_monthly": 0,
+    "spouse_b_cpp_monthly": 0,
+    "spouse_b_oas_monthly": 0
+  },
+
+  "assumptions": {
+    "_comment": "Returns/inflation default to FP Canada-style planning assumptions (lower than US defaults). oas_clawback_threshold is the Canadian analog of the US IRMAA ceiling -- the net-income line you manage RRSP-meltdown withdrawals to. Provincial figures are for your chosen province.",
+    "portfolio_return_base": 0.055,
+    "portfolio_return_conservative": 0.04,
+    "portfolio_return_optimistic": 0.07,
+    "inflation_rate": 0.021,
+    "retirement_spend_annual": 0,
+    "target_equity_pct": 60,
+    "target_bond_pct": 40,
+    "bridge_target": 0,
+    "_bridge_note": "Pre-CPP/OAS bridge: non-registered + TFSA drawn between retirement and the age CPP/OAS begin.",
+    "basic_personal_amount_federal": 16129,
+    "oas_clawback_threshold": 93454,
+    "oas_full_clawback": 151668,
+    "rrsp_dollar_limit": 32490,
+    "tfsa_annual_limit": 7000,
+    "rrif_conversion_age": 71,
+    "capital_gains_inclusion_rate": 0.50,
+    "provincial_basic_personal_amount": 12747,
+    "_assumption_year": 2025
+  },
+
+  "paths": {
+    "model_xlsx": "model/financial_plan.xlsx",
+    "dashboard_html": "dashboard/dashboard.html",
+    "market_intelligence_json": "market_intelligence.json"
+  }
+}

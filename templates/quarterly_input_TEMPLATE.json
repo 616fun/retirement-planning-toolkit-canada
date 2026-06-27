@@ -1,0 +1,36 @@
+{
+  "_instructions": [
+    "Copy this to quarterly_input_Q#_YYYY.json (git-ignored) before each quarterly update.",
+    "Fill account balances from your statements (CAD). Any null is left unchanged from config.",
+    "real_estate: null = carry forward (recommended unless you have a new appraisal).",
+    "employer_stock_holdings: update RSU/employer-stock values so the concentration check stays accurate.",
+    "Run: python3 engine/quarterly_update.py --input quarterly_input_Q3_2026.json"
+  ],
+  "quarter_label": "Q3 2026",
+  "as_of_date": "2026-09-30",
+  "accounts": {
+    "spouse_a_rrsp": null,
+    "spouse_a_tfsa": null,
+    "spouse_a_lira": null,
+    "spouse_a_fhsa": null,
+    "spouse_a_non_registered": null,
+    "spouse_b_rrsp": null,
+    "spouse_b_tfsa": null,
+    "spouse_b_lira": null,
+    "spouse_b_fhsa": null,
+    "spouse_b_non_registered": null,
+    "joint_non_registered": null,
+    "cash_and_gics": null,
+    "resp_a": null,
+    "resp_b": null
+  },
+  "real_estate": {
+    "primary_residence": null,
+    "other_property": null
+  },
+  "employer_stock_holdings": {
+    "employer_stock_in_rrsp": null,
+    "unvested_rsu_value": null,
+    "vested_shares_value": null
+  }
+}
