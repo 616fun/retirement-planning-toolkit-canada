@@ -87,6 +87,31 @@ PROVINCES = {
         "qc_age_amount": 3906, "qc_retirement_amount": 3470,
         "qc_reduction_threshold": 42090, "qc_reduction_rate": 0.1875,
     },
+    "BC": {
+        "name": "British Columbia",
+        "brackets": [
+            (0.0506, 49279), (0.0770, 98560), (0.1050, 113158), (0.1229, 137407),
+            (0.1470, 186306), (0.1680, 259829), (0.2050, None),
+        ],
+        "bpa": 12932,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 5799, "age_phaseout": 43169, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
+    "AB": {
+        "name": "Alberta",
+        # 2025 added an 8% first bracket on the first $60,000.
+        "brackets": [
+            (0.08, 60000), (0.10, 151234), (0.12, 181481), (0.13, 241974),
+            (0.14, 362961), (0.15, None),
+        ],
+        "bpa": 22323,            # highest provincial BPA
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 6221, "age_phaseout": 46308, "age_phaseout_rate": 0.15,
+        "pension_max": 1719,    # Alberta indexes this (most provinces are $1,000)
+    },
 }
 
 _warned = set()

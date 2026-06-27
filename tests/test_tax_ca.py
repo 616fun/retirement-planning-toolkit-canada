@@ -36,6 +36,20 @@ def test_quebec_top_marginal_includes_abatement():
     assert tax_ca.marginal_rate(300000, "QC") < 0.56
 
 
+# Top combined marginal rate (federal top 33%, abated 16.5% only in QC, + provincial
+# top) at an income above every top-bracket threshold. Sourced per jurisdiction in
+# docs/CANADA_RULES.md. Extended one phase at a time as provinces are encoded.
+TOP_MARGINAL = {
+    "ON": 0.5353, "QC": 0.5331, "BC": 0.5350, "AB": 0.4800,
+}
+
+
+@pytest.mark.parametrize("prov,expected", sorted(TOP_MARGINAL.items()))
+def test_top_combined_marginal_rate(prov, expected):
+    # $600k is above every jurisdiction's top-bracket threshold (incl. Yukon's $500k split).
+    assert tax_ca.marginal_rate(600000, prov) == pytest.approx(expected, abs=0.006)
+
+
 def test_oas_clawback():
     assert tax_ca.oas_clawback(50000, 8000, 93454) == 0          # below threshold
     assert tax_ca.oas_clawback(100000, 8000, 93454) == pytest.approx(981.9, abs=0.5)
@@ -68,4 +82,5 @@ def test_age_amount_phases_out_at_high_income():
 
 
 def test_unknown_province_falls_back_to_ontario():
-    assert tax_ca.income_tax(80000, "BC") == tax_ca.income_tax(80000, "ON")
+    # "ZZ" is not a real jurisdiction -> engine warns and uses Ontario.
+    assert tax_ca.income_tax(80000, "ZZ") == tax_ca.income_tax(80000, "ON")
