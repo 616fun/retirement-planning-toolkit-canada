@@ -23,6 +23,12 @@ so you can run the whole thing end to end before entering a single real number.
 > The engine, Monte Carlo, dashboard, and company-health monitor are shared; the
 > entire account/tax/benefit domain layer has been rebuilt for Canada.
 
+![Demo dashboard](docs/dashboard.png)
+
+*The dashboard on the fictional Tremblay demo household (Ontario) — net-worth
+tiles, the pre-CPP/OAS bridge target, employer-stock concentration with an
+OK / WATCH / TRIM verdict, and Monte Carlo success rates.*
+
 ---
 
 ## Why this exists
