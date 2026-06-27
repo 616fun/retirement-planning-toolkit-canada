@@ -9,7 +9,7 @@
     ],
     "filing": "individual",
     "province": "ON",
-    "_province_note": "Canada files individually (no joint return). Provincial tax brackets differ by province -- this toolkit is province-agnostic: set your province here and your provincial figures in assumptions. ON = Ontario (the demo default).",
+    "_province_note": "Canada files individually (no joint return). Set your province here (2-letter code). The tax engine (engine/tax_ca.py) fully encodes ON (Ontario) and QC (Quebec, incl. its brackets, higher BPA, no surtax, and the 16.5% federal abatement); other provinces fall back to Ontario brackets with a warning. Quebec residents: enter QPP in the cpp_monthly fields (taxed like CPP).",
     "pension_income_splitting": true
   },
 

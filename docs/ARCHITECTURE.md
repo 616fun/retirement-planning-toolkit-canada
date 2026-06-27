@@ -63,9 +63,13 @@ a single surviving filer, which is what makes melting early pay off). It compare
 three strategies (do-nothing / fill-to-clawback / optimal) and prints the winner's
 year-by-year plan.
 
-**Modelling scope (honest caveats).** Federal + **Ontario** are fully encoded;
-other provinces fall back to Ontario with a warning (per-province modules, esp.
-**Quebec/QPP**, are roadmapped). The optimizer assumes retirement income is
+**Modelling scope (honest caveats).** Federal + **Ontario** + **Quebec** are fully
+encoded; other provinces fall back to Ontario with a warning (more per-province
+modules are roadmapped). Quebec includes its own brackets, higher BPA, no surtax,
+and the **16.5% federal abatement** (applied in `income_tax()`); QPP is taxed like
+CPP, so enter it in the `cpp_monthly` fields. Quebec-specific items NOT yet modelled:
+the Quebec pension-income and age credits and the **HSF contribution** (see
+`docs/CANADA_RULES.md` §5c). The optimizer assumes retirement income is
 equalized between spouses at 65+ (pension splitting / spousal RRSPs), discounts tax
 at the inflation rate, and treats non-registered + TFSA + cash as an after-tax
 buffer. It does **not** yet model non-registered **capital-gains** tax, the

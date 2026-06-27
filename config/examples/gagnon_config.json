@@ -1,0 +1,94 @@
+{
+  "_comment": "FICTIONAL SAMPLE DATA -- the Gagnon household, a two-income family in Montreal, Quebec. Invented numbers (CAD) to demonstrate the QUEBEC path: Quebec brackets + higher BPA + no surtax + the 16.5% federal abatement, and QPP instead of CPP (entered in the cpp_monthly fields). Balances mirror the Ontario demo (Tremblay) so you can compare the same household across provinces. Sample employer is Canadian National Railway (CNI, NYSE-listed; HQ Montreal) so the live company-health demo pulls real market data. Run with: RPT_CONFIG=config/examples/gagnon_config.json python3 engine/build_model.py",
+
+  "household": {
+    "name": "Gagnon Household",
+    "members": [
+      { "id": "spouse_a", "display_name": "Camille", "birth_year": 1974, "retirement_age": 60, "cpp_claim_age": 65, "oas_claim_age": 65 },
+      { "id": "spouse_b", "display_name": "Luc", "birth_year": 1972, "retirement_age": 62, "cpp_claim_age": 70, "oas_claim_age": 70 }
+    ],
+    "filing": "individual",
+    "province": "QC",
+    "_province_note": "Quebec: QPP (not CPP) -- enter QPP amounts in the cpp_monthly fields. QPP is deferrable to age 72 (vs CPP's 70). Quebec files a separate provincial return; the engine applies the 16.5% federal abatement automatically.",
+    "pension_income_splitting": true
+  },
+
+  "employer_stock": {
+    "employer_name": "Canadian National Railway",
+    "ticker": "CNI",
+    "sec_identity": "Sample User sample@example.com",
+    "major_holder_flag_name": null,
+    "watch_threshold_pct": 5.0,
+    "trim_threshold_pct": 7.0,
+    "holdings": {
+      "employer_stock_in_rrsp": 50000,
+      "unvested_rsu_value": 65000,
+      "vested_shares_value": 28000
+    }
+  },
+
+  "accounts": {
+    "spouse_a_rrsp": 480000,
+    "spouse_a_tfsa": 102000,
+    "spouse_a_lira": 80000,
+    "spouse_a_fhsa": 16000,
+    "spouse_a_non_registered": 140000,
+    "spouse_b_rrsp": 330000,
+    "spouse_b_tfsa": 88000,
+    "spouse_b_lira": 0,
+    "spouse_b_fhsa": 0,
+    "spouse_b_non_registered": 60000,
+    "joint_non_registered": 150000,
+    "cash_and_gics": 70000,
+    "resp_a": 45000,
+    "resp_b": 30000
+  },
+
+  "real_estate": {
+    "primary_residence": 650000,
+    "other_property": 0
+  },
+
+  "income": {
+    "spouse_a_salary": 145000,
+    "spouse_a_bonus_pct": 0.12,
+    "spouse_a_rsu_annual": 22000,
+    "spouse_b_annual": 85000,
+    "pension_monthly_at_retirement": 1800,
+    "pension_cola": 0.02,
+    "passive_income_annual": 0
+  },
+
+  "government_benefits": {
+    "spouse_a_cpp_monthly": 1250,
+    "spouse_a_oas_monthly": 728,
+    "spouse_b_cpp_monthly": 1900,
+    "spouse_b_oas_monthly": 990
+  },
+
+  "assumptions": {
+    "portfolio_return_base": 0.055,
+    "portfolio_return_conservative": 0.04,
+    "portfolio_return_optimistic": 0.07,
+    "inflation_rate": 0.021,
+    "retirement_spend_annual": 88000,
+    "target_equity_pct": 60,
+    "target_bond_pct": 40,
+    "bridge_target": 450000,
+    "basic_personal_amount_federal": 16129,
+    "oas_clawback_threshold": 93454,
+    "oas_full_clawback": 151668,
+    "rrsp_dollar_limit": 32490,
+    "tfsa_annual_limit": 7000,
+    "rrif_conversion_age": 71,
+    "capital_gains_inclusion_rate": 0.50,
+    "provincial_basic_personal_amount": 18571,
+    "_assumption_year": 2025
+  },
+
+  "paths": {
+    "model_xlsx": "model/financial_plan.xlsx",
+    "dashboard_html": "dashboard/dashboard.html",
+    "market_intelligence_json": "market_intelligence.json"
+  }
+}

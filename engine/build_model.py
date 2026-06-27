@@ -408,7 +408,7 @@ def _optimize_meltdown(cfg):
     """Grid-search the level per-spouse meltdown target that minimizes total
     lifetime tax (subject to the plan staying solvent)."""
     best = None
-    for t in range(20000, 130001, 2500):
+    for t in range(20000, 200001, 2500):   # wide enough that large RRSPs don't clip the optimum
         r = _simulate_meltdown(cfg, "optimal", target=float(t))
         if r["insolvent"]:
             continue

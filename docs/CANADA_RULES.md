@@ -156,6 +156,59 @@ Combined federal + provincial, top bracket, ordinary income.
 
 Ontario also levies a **Health Premium** (up to $900/yr, income-tested) — note for completeness; encode if modeling Ontario take-home precisely.
 
+### 5c. Quebec — full provincial schedule (2025) + the federal abatement
+
+Quebec administers its own income tax and Quebec residents file a **separate
+provincial return** (TP-1) on top of the federal return. The toolkit's tax engine
+(`engine/tax_ca.py`) encodes Quebec fully.
+
+**Quebec brackets (2025):**
+
+| Rate | Taxable income range |
+|---|---|
+| 14.00% | First $53,255 |
+| 19.00% | $53,255 – $106,495 |
+| 24.00% | $106,495 – $129,590 |
+| 25.75% | Over $129,590 |
+
+(2026, indexed 2.85%: 14% to $54,345; 19% to $108,680; 24% to $132,245; 25.75% above.)
+
+**Quebec Basic Personal Amount (2025):** **$18,571** (credited at 14%; no
+high-income phase-out, unlike the federal BPA).
+
+**No provincial surtax** (unlike Ontario).
+
+**The Quebec abatement — 16.5%.** This is the piece that makes Quebec's combined
+rate work out. A Quebec resident's **basic federal tax is reduced by 16.5%**
+(historical opt-out: Ottawa vacates 16.5 points of federal personal tax in Quebec —
+13.5 for the Alternative Payments for Standing Programs + 3.0 for the discontinued
+Youth Allowances — and Quebec funds those services via its own higher provincial
+tax). The engine applies this in `income_tax()` so combined Quebec rates come out
+right: e.g. the **top combined marginal rate is 53.31%** = federal 33% × (1 − 0.165)
++ Quebec 25.75%. Without the abatement, Quebec rates would read ~9 pp too high.
+
+**QPP instead of CPP.** Quebec is covered by the **Quebec Pension Plan**. Max and
+average amounts are **essentially identical to CPP** (2025 max $1,433/mo at 65), so
+enter QPP in the `cpp_monthly` fields. Key differences: QPP can be **deferred to age
+72** (vs CPP's 70) for up to **+58.8%** vs the age-65 amount, and the early-claim
+reduction is graduated **0.5–0.6%/mo** (use 0.6%/mo for a max-pension claimant).
+
+**Quebec wrinkles the engine does NOT yet model** (refinements, small vs. the
+bracket/abatement core): the Quebec **pension income amount** credit (14% of ~$3,470,
+2025), the Quebec **age amount** (65+), and the individual **Health Services Fund
+(HSF) contribution** (1% on pension/investment income, OAS excluded, capped
+~$1,000/yr). RRSP/RRIF lump-sum **withholding** is heavier in Quebec (flat 14% Quebec
++ tiered 5/10/15% federal) — but withholding is a prepayment, not final tax, so it
+doesn't affect the lifetime-tax optimizer. The old per-adult **Quebec health
+contribution was abolished in 2017** — not modelled.
+
+⚠ **VERIFY** (Retraite Québec / Revenu Québec pages blocked automated fetch): the
+2025 QPP *average* benefit, the HSF exemption/cap, and the exact Quebec
+pension-splitting age wording. Confirm before relying on those specifics.
+
+**Source:** Revenu Québec; canada.ca (Quebec Abatement, Line 44000); TaxTips.ca;
+Retraite Québec; RCGT 2025 QPP/CPP tables.
+
 ---
 
 ## 6. RRSP (Registered Retirement Savings Plan)

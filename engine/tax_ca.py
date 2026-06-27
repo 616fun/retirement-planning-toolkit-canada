@@ -8,9 +8,16 @@ the Ontario surtax are indexed forward from a base year by an inflation rate, so
 the engine works across a multi-decade projection.
 
 Scope / honesty:
-  * Federal + ONTARIO are fully encoded (sourced 2025 figures; see
+  * Federal + ONTARIO + QUEBEC are fully encoded (sourced 2025 figures; see
     docs/CANADA_RULES.md). Other provinces fall back to Ontario with a one-time
-    warning -- per-province bracket modules (esp. Quebec/QPP) are roadmapped.
+    warning -- more per-province bracket modules are roadmapped.
+  * Quebec is special: it has its own brackets and a higher Basic Personal
+    Amount, NO provincial surtax, and -- critically -- the 16.5% "Quebec
+    abatement" that reduces a Quebec resident's FEDERAL tax (because the province
+    administers programs Ottawa runs elsewhere). The abatement is applied in
+    income_tax() so combined Quebec rates come out right. QPP is taxed exactly
+    like CPP (ordinary income), so it needs no separate handling here -- enter QPP
+    in the cpp_monthly fields.
   * Models ordinary income. It does NOT yet model the dividend tax credit, the
     capital-gains 50% inclusion, the federal BPA high-income phase-down, or the
     Ontario Health Premium. These are refinements, not load-bearing for the
@@ -44,6 +51,22 @@ PROVINCES = {
         "bpa": 12747,
         # Ontario surtax applies to provincial tax PAYABLE (after the BPA credit).
         "surtax": [(0.20, 5710), (0.36, 7307)],  # (extra_rate, tax-payable threshold)
+        "abatement": 0.0,
+    },
+    "QC": {
+        "name": "Quebec",
+        # Quebec 2025 brackets (Revenu Quebec). Quebec administers its own income
+        # tax and files a separate provincial return.
+        "brackets": [
+            (0.14, 53255),
+            (0.19, 106495),
+            (0.24, 129590),
+            (0.2575, None),
+        ],
+        "bpa": 18571,            # 2025 (Quebec's BPA is notably higher than ON's)
+        "surtax": [],            # Quebec levies no provincial surtax
+        # The 16.5% Quebec abatement reduces a Quebec resident's FEDERAL tax.
+        "abatement": 0.165,
     },
 }
 
@@ -93,8 +116,15 @@ def provincial_tax(income, province="ON", year=BASE_YEAR, infl=0.021):
 
 
 def income_tax(income, province="ON", year=BASE_YEAR, infl=0.021):
-    """Combined federal + provincial ordinary-income tax for one individual."""
-    return federal_tax(income, year, infl) + provincial_tax(income, province, year, infl)
+    """Combined federal + provincial ordinary-income tax for one individual.
+
+    For Quebec residents the federal portion is reduced by the 16.5% Quebec
+    abatement before being added to the (separately computed) Quebec tax.
+    """
+    fed = federal_tax(income, year, infl)
+    abatement = PROVINCES.get(province, PROVINCES["ON"]).get("abatement", 0.0)
+    fed *= (1 - abatement)
+    return fed + provincial_tax(income, province, year, infl)
 
 
 def oas_clawback(net_income, oas_received, threshold, recovery_rate=0.15):
@@ -111,8 +141,10 @@ def marginal_rate(income, province="ON", year=BASE_YEAR, infl=0.021, step=100.0)
 
 
 if __name__ == "__main__":
-    # Sanity check: monotonic, sensible effective rates for Ontario.
-    for inc in (20000, 50000, 90000, 150000, 250000):
-        t = income_tax(inc, "ON")
-        print(f"  ON ${inc:>7,}: tax ${t:>9,.0f}  (avg {100*t/inc:4.1f}%, "
-              f"marginal {100*marginal_rate(inc,'ON'):4.1f}%)")
+    # Sanity check: monotonic, sensible effective + marginal rates per province.
+    for prov in ("ON", "QC"):
+        print(f"  --- {PROVINCES[prov]['name']} ({prov}) ---")
+        for inc in (20000, 50000, 90000, 150000, 250000):
+            t = income_tax(inc, prov)
+            print(f"  {prov} ${inc:>7,}: tax ${t:>9,.0f}  (avg {100*t/inc:4.1f}%, "
+                  f"marginal {100*marginal_rate(inc,prov):4.1f}%)")
