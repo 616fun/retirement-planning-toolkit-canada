@@ -112,6 +112,46 @@ PROVINCES = {
         "age_amount": 6221, "age_phaseout": 46308, "age_phaseout_rate": 0.15,
         "pension_max": 1719,    # Alberta indexes this (most provinces are $1,000)
     },
+    "MB": {
+        "name": "Manitoba",
+        # 2025 brackets/BPA frozen at 2024 levels (no indexation).
+        "brackets": [(0.108, 47000), (0.1275, 100000), (0.174, None)],
+        "bpa": 15780,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 3728, "age_phaseout": 27749, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
+    "SK": {
+        "name": "Saskatchewan",
+        "brackets": [(0.105, 53463), (0.125, 152750), (0.145, None)],
+        "bpa": 19491,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 5785, "age_phaseout": 43065, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
+    "NS": {
+        "name": "Nova Scotia",
+        # 2025: Nova Scotia began indexing brackets/credits; the income-tested BPA
+        # supplement was replaced by a flat $11,744 BPA.
+        "brackets": [(0.0879, 30507), (0.1495, 61015), (0.1667, 95883),
+                     (0.175, 154650), (0.21, None)],
+        "bpa": 11744,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 5734, "age_phaseout": 30828, "age_phaseout_rate": 0.15,
+        "pension_max": 1173,
+    },
+    "NB": {
+        "name": "New Brunswick",
+        "brackets": [(0.094, 51306), (0.14, 102614), (0.16, 190060), (0.195, None)],
+        "bpa": 13396,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 6037, "age_phaseout": 44945, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
 }
 
 _warned = set()

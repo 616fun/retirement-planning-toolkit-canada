@@ -41,6 +41,7 @@ def test_quebec_top_marginal_includes_abatement():
 # docs/CANADA_RULES.md. Extended one phase at a time as provinces are encoded.
 TOP_MARGINAL = {
     "ON": 0.5353, "QC": 0.5331, "BC": 0.5350, "AB": 0.4800,
+    "MB": 0.5040, "SK": 0.4750, "NS": 0.5400, "NB": 0.5250,
 }
 
 
