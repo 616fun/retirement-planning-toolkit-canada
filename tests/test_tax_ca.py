@@ -9,13 +9,41 @@ def test_zero_and_negative_income():
     assert tax_ca.income_tax(-5000, "ON") == 0
 
 
-@pytest.mark.parametrize("prov", ["ON", "QC"])
+ALL = sorted(tax_ca.PROVINCES)
+
+
+@pytest.mark.parametrize("prov", ALL)
 def test_monotonic_increasing(prov):
     prev = -1.0
-    for inc in range(0, 300001, 10000):
+    for inc in range(0, 600001, 20000):
         t = tax_ca.income_tax(inc, prov)
         assert t >= prev - 1e-6, f"{prov} not monotonic at {inc}"
         prev = t
+
+
+@pytest.mark.parametrize("prov", ALL)
+def test_bracket_tables_well_formed(prov):
+    """Structural guard against data-entry slips in any jurisdiction's brackets:
+    open-ended top, rates in (0,1) and non-decreasing, thresholds strictly ascending."""
+    br = tax_ca.PROVINCES[prov]["brackets"]
+    assert br[-1][1] is None, f"{prov}: top bracket must be open-ended (None)"
+    rates = [r for r, _ in br]
+    uppers = [u for _, u in br[:-1]]
+    assert all(0 < r < 1 for r in rates), f"{prov}: rate out of range"
+    assert rates == sorted(rates), f"{prov}: rates must be non-decreasing (progressive)"
+    assert uppers == sorted(uppers) and len(set(uppers)) == len(uppers), \
+        f"{prov}: thresholds must be strictly ascending"
+    assert all(u > 0 for u in uppers)
+    assert tax_ca.PROVINCES[prov]["bpa"] > 0
+
+
+@pytest.mark.parametrize("prov", ALL)
+def test_marginal_rate_within_bounds(prov):
+    # Combined marginal rate must stay sane across the income range (catches a
+    # rate typo like 0.18 -> 1.8 or a sign error). Top combined rates are <55%.
+    for inc in (30000, 75000, 150000, 400000):
+        m = tax_ca.marginal_rate(inc, prov)
+        assert 0.0 <= m <= 0.56, f"{prov}: marginal {m:.3f} at {inc} out of bounds"
 
 
 def test_bpa_shelters_low_income():

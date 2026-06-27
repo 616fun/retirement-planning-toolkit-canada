@@ -1,16 +1,25 @@
 """Unit tests for the RRSP-meltdown optimizer and Monte Carlo determinism."""
+import copy
 import pathlib
 
 import pytest
 import config_loader as cl
 import build_model as bm
 import quarterly_update as qu
+import tax_ca
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def _cfg(name):
     cfg, _ = cl.load_config(str(ROOT / "config" / "examples" / name))
+    return cfg
+
+
+def _cfg_in(prov):
+    """The Ontario demo household relocated to another province/territory."""
+    cfg = copy.deepcopy(_cfg("tremblay_config.json"))
+    cfg["household"]["province"] = prov
     return cfg
 
 
@@ -53,6 +62,24 @@ def test_quebec_costs_more_than_ontario_same_household():
     on = bm._optimize_meltdown(_cfg("tremblay_config.json"))
     qc = bm._optimize_meltdown(_cfg("gagnon_config.json"))
     assert qc["total_tax"] > on["total_tax"]
+
+
+@pytest.mark.parametrize("prov", sorted(tax_ca.PROVINCES))
+def test_optimizer_runs_for_every_jurisdiction(prov):
+    cfg = _cfg_in(prov)
+    best = bm._optimize_meltdown(cfg)
+    none = bm._simulate_meltdown(cfg, "none")
+    assert best["target"] is not None and not best["insolvent"]
+    assert best["total_tax"] <= none["total_tax"]
+    assert all(row["rrsp"] >= -1e-6 for row in best["schedule"])
+
+
+def test_cross_province_tax_ordering():
+    # Same household: lower-rate jurisdictions cost less lifetime tax than higher.
+    def total(prov):
+        return bm._optimize_meltdown(_cfg_in(prov))["total_tax"]
+    assert total("NU") < total("ON") < total("NS")   # 44.5% < 53.5% < 54.0% top
+    assert total("AB") < total("ON")                 # Alberta cheaper than Ontario
 
 
 def test_monte_carlo_deterministic_and_in_range():
