@@ -137,6 +137,13 @@ Combined federal + provincial, top bracket, ordinary income.
 > (Ontario only — PEI's was eliminated in 2024), and, for Quebec, the 16.5%
 > abatement + HSF. A test asserts each one's top combined marginal rate. An
 > unrecognized province code falls back to Ontario with a warning.
+>
+> ✅ **Independently verified** against external 2025 calculators at $50k / $100k /
+> $150k / $250k for all 13 jurisdictions — exact to the dollar at low/mid incomes;
+> high-income ties out once the federal ($16,129→$14,538) and Manitoba ($15,780→$0)
+> high-income BPA phase-downs are applied (both now modelled in `engine/tax_ca.py`).
+> The federal 4th bracket is the statutory **29%** (an earlier 29.31% encoding —
+> the effective rate including the BPA grind — was corrected).
 
 ⚠ **VERIFY before display:** these top-rate figures shift by ~0.1–0.5 pp with annual indexation and any rate changes; ON/BC/QC cluster tightly near 53.5%. Treat as indicative; recompute from bracket schedules for precision.
 

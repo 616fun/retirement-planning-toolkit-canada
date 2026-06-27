@@ -73,9 +73,10 @@ contribution** (see `docs/CANADA_RULES.md` §5c). The optimizer assumes retireme
 income is
 equalized between spouses at 65+ (pension splitting / spousal RRSPs), discounts tax
 at the inflation rate, and treats non-registered + TFSA + cash as an after-tax
-buffer. It does **not** yet model non-registered **capital-gains** tax, the
-**dividend tax credit**, the federal BPA high-income phase-down, or TFSA
-contribution limits. Illustrative, not advice — see `docs/CANADA_RULES.md`.
+buffer. The federal and Manitoba high-income BPA phase-downs **are** modelled
+(verified against external calculators). It does **not** yet model non-registered
+**capital-gains** tax, the **dividend tax credit**, or TFSA contribution limits.
+Illustrative, not advice — see `docs/CANADA_RULES.md`.
 
 ## Cell color convention
 - **Green** text = cross-sheet link (`=Assumptions!C5`)

@@ -119,6 +119,29 @@ def test_age_amount_phases_out_at_high_income():
     assert d_low > d_high > 0
 
 
+def test_federal_fourth_bracket_is_statutory():
+    # Must be the statutory 29%, NOT the effective 29.31% that bakes in the BPA grind.
+    rates = [r for r, _ in tax_ca.FEDERAL_BRACKETS]
+    assert 0.29 in rates and 0.2931 not in rates
+
+
+def test_bpa_phasedown_helper():
+    f = tax_ca._effective_bpa
+    yr, infl = tax_ca.BASE_YEAR, 0.0
+    assert f(16129, 14538, (177882, 253414), 100000, yr, infl) == pytest.approx(16129)  # full below
+    assert f(16129, 14538, (177882, 253414), 300000, yr, infl) == pytest.approx(14538)  # floor above
+    mid = (177882 + 253414) / 2
+    assert f(16129, 14538, (177882, 253414), mid, yr, infl) == pytest.approx((16129 + 14538) / 2)
+
+
+def test_high_income_matches_external_calculator():
+    # Anchored to first-principles CRA 2025 ground truth (statutory 29% + federal
+    # BPA phase-down + provincial schedules), independently cross-checked by external
+    # calculator verifiers. MB also exercises the provincial BPA phase-down ($200k-$400k).
+    assert tax_ca.income_tax(250000, "ON", hsf_base=0) == pytest.approx(89367, abs=3)
+    assert tax_ca.income_tax(250000, "MB", hsf_base=0) == pytest.approx(91947, abs=3)
+
+
 def test_unknown_province_falls_back_to_ontario():
     # "ZZ" is not a real jurisdiction -> engine warns and uses Ontario.
     assert tax_ca.income_tax(80000, "ZZ") == tax_ca.income_tax(80000, "ON")

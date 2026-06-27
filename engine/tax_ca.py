@@ -19,9 +19,10 @@ Scope / honesty:
     credit, and the individual HSF contribution on pension/investment income.
     QPP is taxed like CPP (enter it in the cpp_monthly fields).
   * Retirement credits modelled: the age amount (65+, income-tested) and the
-    pension income amount, federal + provincial. NOT modelled: every other
-    non-refundable credit, the dividend tax credit, the capital-gains 50%
-    inclusion, and the federal BPA high-income phase-down. Illustrative only.
+    pension income amount, federal + provincial. The federal and Manitoba
+    high-income BPA phase-downs are modelled. NOT modelled: every other
+    non-refundable credit, the dividend tax credit, and the capital-gains 50%
+    inclusion. Illustrative only.
 
 This is illustrative, not tax advice. Verify against CRA / Revenu Quebec.
 """
@@ -33,10 +34,12 @@ FEDERAL_BRACKETS = [
     (0.145, 57375),     # 2025 blended (15% -> 14% cut mid-year)
     (0.205, 114750),
     (0.26, 177882),
-    (0.2931, 253414),
+    (0.29, 253414),     # statutory 29% (effective ~29.31% once the BPA grind below applies)
     (0.33, None),
 ]
-FEDERAL_BPA = 16129          # 2025 (phase-down ignored)
+FEDERAL_BPA = 16129          # 2025 enhanced (maximum)
+FEDERAL_BPA_MIN = 14538      # grinds down to this over the 29% bracket...
+FEDERAL_BPA_PHASE = (177882, 253414)   # ...linearly across this net-income band
 
 # Retirement non-refundable credits (2025). Amounts are credited at the
 # jurisdiction's lowest bracket rate. Federal age amount phases out with income.
@@ -117,6 +120,7 @@ PROVINCES = {
         # 2025 brackets/BPA frozen at 2024 levels (no indexation).
         "brackets": [(0.108, 47000), (0.1275, 100000), (0.174, None)],
         "bpa": 15780,
+        "bpa_phaseout": {"floor": 0, "start": 200000, "end": 400000},  # MB grinds BPA to 0
         "surtax": [],
         "abatement": 0.0,
         "age_amount": 3728, "age_phaseout": 27749, "age_phaseout_rate": 0.15,
@@ -214,6 +218,22 @@ def _f(year, infl):
     return (1 + infl) ** (year - BASE_YEAR)
 
 
+def _effective_bpa(full, floor, phase, income, year, infl):
+    """Basic Personal Amount after any high-income linear phase-down.
+
+    Full amount up to phase[0], grinds linearly to `floor` by phase[1], flat after.
+    Used for the federal BPA ($16,129 -> $14,538) and Manitoba's ($15,780 -> $0).
+    """
+    f = _f(year, infl)
+    fa, fl = full * f, floor * f
+    s, e = phase[0] * f, phase[1] * f
+    if income <= s:
+        return fa
+    if income >= e:
+        return fl
+    return fa - (fa - fl) * (income - s) / (e - s)
+
+
 def _bracket_tax(income, brackets, year, infl):
     tax, lo = 0.0, 0.0
     for rate, upper in brackets:
@@ -230,7 +250,7 @@ def federal_tax(income, year=BASE_YEAR, infl=0.021):
     if income <= 0:
         return 0.0
     gross = _bracket_tax(income, FEDERAL_BRACKETS, year, infl)
-    bpa = FEDERAL_BPA * _f(year, infl)
+    bpa = _effective_bpa(FEDERAL_BPA, FEDERAL_BPA_MIN, FEDERAL_BPA_PHASE, income, year, infl)
     credit = FEDERAL_BRACKETS[0][0] * min(income, bpa)
     return max(0.0, gross - credit)
 
@@ -246,7 +266,11 @@ def provincial_tax(income, province="ON", year=BASE_YEAR, infl=0.021):
             _warned.add(province)
         p = PROVINCES["ON"]
     gross = _bracket_tax(income, p["brackets"], year, infl)
-    bpa = p["bpa"] * _f(year, infl)
+    ph = p.get("bpa_phaseout")
+    if ph:
+        bpa = _effective_bpa(p["bpa"], ph["floor"], (ph["start"], ph["end"]), income, year, infl)
+    else:
+        bpa = p["bpa"] * _f(year, infl)
     tax = max(0.0, gross - p["brackets"][0][0] * min(income, bpa))
     # Ontario surtax: an extra % of provincial tax PAYABLE above each threshold.
     surtax = 0.0
