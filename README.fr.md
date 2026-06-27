@@ -27,11 +27,11 @@ afin que vous puissiez tout exécuter de bout en bout avant de saisir le moindre
 > Le moteur, le Monte-Carlo, le tableau de bord et le moniteur de santé d'entreprise sont partagés;
 > toute la couche métier comptes/impôt/prestations a été reconstruite pour le Canada.
 
-![Demo dashboard](docs/dashboard.png)
+![Tableau de bord de démo](docs/dashboard.fr.png)
 
-*Le tableau de bord sur le ménage fictif de la démo Tremblay (Ontario) — tuiles de
+*Le tableau de bord sur le ménage fictif de la démo Tremblay (Ontario), en français — tuiles de
 valeur nette, la cible du pont avant le RPC/SV, la concentration de l'action de l'employeur avec un
-verdict OK / WATCH / TRIM, et les taux de réussite Monte-Carlo.*
+verdict OK / SURVEILLER / RÉDUIRE, et les taux de réussite Monte-Carlo.*
 
 ---
 
