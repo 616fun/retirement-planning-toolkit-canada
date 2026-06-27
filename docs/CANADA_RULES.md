@@ -131,6 +131,13 @@ Combined federal + provincial, top bracket, ordinary income.
 | Nunavut | ~44.50% |
 
 **Source:** TaxTips.ca / PwC Tax Summaries (2025).
+
+> ✅ **All 13 jurisdictions (10 provinces + 3 territories) are encoded** in
+> `engine/tax_ca.py` with verified 2025 brackets, BPA, age/pension credits, surtax
+> (Ontario only — PEI's was eliminated in 2024), and, for Quebec, the 16.5%
+> abatement + HSF. A test asserts each one's top combined marginal rate. An
+> unrecognized province code falls back to Ontario with a warning.
+
 ⚠ **VERIFY before display:** these top-rate figures shift by ~0.1–0.5 pp with annual indexation and any rate changes; ON/BC/QC cluster tightly near 53.5%. Treat as indicative; recompute from bracket schedules for precision.
 
 ### 5b. Ontario — full provincial schedule (2025, default demo province)

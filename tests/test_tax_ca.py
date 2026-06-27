@@ -43,13 +43,21 @@ TOP_MARGINAL = {
     "ON": 0.5353, "QC": 0.5331, "BC": 0.5350, "AB": 0.4800,
     "MB": 0.5040, "SK": 0.4750, "NS": 0.5400, "NB": 0.5250,
     "NL": 0.5480, "PE": 0.5200,
+    "YT": 0.4800, "NT": 0.4705, "NU": 0.4450,
 }
+
+
+def test_all_thirteen_jurisdictions_encoded():
+    # 10 provinces + 3 territories; QC carries the special abatement field.
+    assert len(tax_ca.PROVINCES) == 13
+    assert tax_ca.PROVINCES["QC"]["abatement"] == 0.165
 
 
 @pytest.mark.parametrize("prov,expected", sorted(TOP_MARGINAL.items()))
 def test_top_combined_marginal_rate(prov, expected):
-    # $600k is above every jurisdiction's top-bracket threshold (incl. Yukon's $500k split).
-    assert tax_ca.marginal_rate(600000, prov) == pytest.approx(expected, abs=0.006)
+    # $1.5M clears every jurisdiction's top-bracket threshold -- incl. Yukon's $500k
+    # split and Newfoundland's top bracket at ~$1.13M -- so this checks the true top rate.
+    assert tax_ca.marginal_rate(1_500_000, prov) == pytest.approx(expected, abs=0.004)
 
 
 def test_oas_clawback():

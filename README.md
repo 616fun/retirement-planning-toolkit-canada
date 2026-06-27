@@ -45,7 +45,7 @@ splitting, individual (not joint) filing — and this toolkit encodes it directl
 | Component | File | Does |
 |---|---|---|
 | Config loader | `engine/config_loader.py` | One load point + derived math (concentration, investable total) |
-| Tax engine | `engine/tax_ca.py` | Federal + provincial (Ontario & Quebec, incl. the 16.5% Quebec abatement) income tax + OAS clawback; powers the meltdown optimizer |
+| Tax engine | `engine/tax_ca.py` | Federal + **all 10 provinces & 3 territories** (incl. Quebec's 16.5% abatement & HSF) income tax + retirement credits + OAS clawback; powers the meltdown optimizer |
 | Model builder | `engine/build_model.py` | Generates the multi-tab `.xlsx` from config |
 | Company health | `engine/company_health.py` | Live ticker price/analyst data → RSU/trim verdict |
 | Quarterly update | `engine/quarterly_update.py` | Rebuild + 10k-path Monte Carlo + dashboard refresh |
@@ -65,7 +65,7 @@ splitting, individual (not joint) filing — and this toolkit encodes it directl
 | **RRSP-meltdown lifetime-tax optimizer** (the Canadian analog of a Roth-conversion ladder) | RRSP Meltdown tab — searches the withdrawal path that minimizes the present value of total lifetime tax, including the terminal RRSP deemed-disposition at death |
 | **Age-71 RRIF conversion** deadline | `assumptions.rrif_conversion_age`; Action Plan |
 | **Pension income splitting** (up to 50%) | Action Plan; knowledge base |
-| **Provincial tax** | `household.province` — **Ontario & Quebec** fully encoded (Quebec incl. its brackets, higher BPA, no surtax, and the 16.5% federal abatement); other provinces fall back to Ontario with a warning |
+| **Provincial tax** | `household.province` — **all 10 provinces + 3 territories encoded** (Quebec incl. its brackets, higher BPA, no surtax, and the 16.5% federal abatement); an unrecognized code falls back to Ontario with a warning |
 | **QPP** (Quebec) | enter in the `cpp_monthly` fields — taxed like CPP; deferrable to 72 |
 
 See [`docs/CANADA_RULES.md`](docs/CANADA_RULES.md) for the full, sourced parameter

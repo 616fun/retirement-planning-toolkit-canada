@@ -9,7 +9,7 @@
     ],
     "filing": "individual",
     "province": "ON",
-    "_province_note": "Canada files individually (no joint return). Set your province here (2-letter code). The tax engine (engine/tax_ca.py) fully encodes ON (Ontario) and QC (Quebec, incl. its brackets, higher BPA, no surtax, and the 16.5% federal abatement); other provinces fall back to Ontario brackets with a warning. Quebec residents: enter QPP in the cpp_monthly fields (taxed like CPP).",
+    "_province_note": "Canada files individually (no joint return). Set your province/territory here (2-letter code: ON QC BC AB MB SK NS NB NL PE YT NT NU). The tax engine (engine/tax_ca.py) fully encodes all 10 provinces and 3 territories with 2025 brackets, BPA, and age/pension credits (Quebec also incl. its higher BPA, no surtax, the 16.5% federal abatement, and the HSF); an unrecognized code falls back to Ontario with a warning. Quebec residents: enter QPP in the cpp_monthly fields (taxed like CPP).",
     "pension_income_splitting": true
   },
 

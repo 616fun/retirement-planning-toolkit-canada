@@ -63,9 +63,9 @@ a single surviving filer, which is what makes melting early pay off). It compare
 three strategies (do-nothing / fill-to-clawback / optimal) and prints the winner's
 year-by-year plan.
 
-**Modelling scope (honest caveats).** Federal + **Ontario** + **Quebec** are fully
-encoded; other provinces fall back to Ontario with a warning (more per-province
-modules are roadmapped). Quebec includes its own brackets, higher BPA, no surtax,
+**Modelling scope (honest caveats).** Federal + **all 10 provinces and 3 territories**
+are fully encoded; an unrecognized province code falls back to Ontario with a warning.
+Quebec includes its own brackets, higher BPA, no surtax,
 and the **16.5% federal abatement** (applied in `income_tax()`); QPP is taxed like
 CPP, so enter it in the `cpp_monthly` fields. The engine also models the **age amount**
 and **pension-income** credits (federal + ON + QC, symmetric) and Quebec's **HSF

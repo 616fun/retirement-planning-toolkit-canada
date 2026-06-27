@@ -10,9 +10,9 @@ forward from a base year by an inflation rate, so the engine works across a
 multi-decade projection.
 
 Scope / honesty:
-  * Federal + ONTARIO + QUEBEC are fully encoded (sourced 2025 figures; see
-    docs/CANADA_RULES.md). Other provinces fall back to Ontario with a one-time
-    warning -- more per-province bracket modules are roadmapped.
+  * ALL 10 provinces + 3 territories are fully encoded (sourced 2025 figures; see
+    docs/CANADA_RULES.md). An unrecognized province code falls back to Ontario with
+    a one-time warning.
   * Quebec is special: its own brackets and a higher Basic Personal Amount, NO
     provincial surtax, the 16.5% "Quebec abatement" that reduces a Quebec
     resident's FEDERAL tax, a bundled (family-income-tested) age/retirement
@@ -172,6 +172,37 @@ PROVINCES = {
         "abatement": 0.0,
         "age_amount": 6510, "age_phaseout": 36600, "age_phaseout_rate": 0.15,
         "pension_max": 1000,
+    },
+    "YT": {
+        "name": "Yukon",
+        # Yukon keeps 12.8% from $253,414 to $500,000, then 15% above (merged here).
+        # BPA mirrors the federal enhanced BPA (grind to $14,538 not modelled).
+        "brackets": [(0.064, 57375), (0.090, 114750), (0.109, 177882),
+                     (0.128, 500000), (0.150, None)],
+        "bpa": 16129,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 9028, "age_phaseout": 45522, "age_phaseout_rate": 0.15,
+        "pension_max": 2000,
+    },
+    "NT": {
+        "name": "Northwest Territories",
+        "brackets": [(0.059, 51964), (0.086, 103930), (0.122, 168967), (0.1405, None)],
+        "bpa": 17842,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 8727, "age_phaseout": 45522, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
+    "NU": {
+        "name": "Nunavut",
+        # Highest BPA + age amount, lowest combined top rate in Canada.
+        "brackets": [(0.040, 54707), (0.070, 109413), (0.090, 177881), (0.115, None)],
+        "bpa": 19274,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 12303, "age_phaseout": 45522, "age_phaseout_rate": 0.15,
+        "pension_max": 2000,
     },
 }
 
