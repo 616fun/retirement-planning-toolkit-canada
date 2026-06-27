@@ -67,9 +67,10 @@ year-by-year plan.
 encoded; other provinces fall back to Ontario with a warning (more per-province
 modules are roadmapped). Quebec includes its own brackets, higher BPA, no surtax,
 and the **16.5% federal abatement** (applied in `income_tax()`); QPP is taxed like
-CPP, so enter it in the `cpp_monthly` fields. Quebec-specific items NOT yet modelled:
-the Quebec pension-income and age credits and the **HSF contribution** (see
-`docs/CANADA_RULES.md` §5c). The optimizer assumes retirement income is
+CPP, so enter it in the `cpp_monthly` fields. The engine also models the **age amount**
+and **pension-income** credits (federal + ON + QC, symmetric) and Quebec's **HSF
+contribution** (see `docs/CANADA_RULES.md` §5c). The optimizer assumes retirement
+income is
 equalized between spouses at 65+ (pension splitting / spousal RRSPs), discounts tax
 at the inflation rate, and treats non-registered + TFSA + cash as an after-tax
 buffer. It does **not** yet model non-registered **capital-gains** tax, the

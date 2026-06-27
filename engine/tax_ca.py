@@ -3,27 +3,27 @@
 tax_ca.py -- a small Canadian personal income-tax engine.
 
 Computes combined federal + provincial tax on an individual's taxable income,
-plus the OAS Recovery Tax (clawback). Brackets, the Basic Personal Amount, and
-the Ontario surtax are indexed forward from a base year by an inflation rate, so
-the engine works across a multi-decade projection.
+the main retirement non-refundable credits (age amount + pension income amount),
+the OAS Recovery Tax (clawback), and -- for Quebec -- the individual Health
+Services Fund (HSF) contribution. Brackets, credits, and thresholds are indexed
+forward from a base year by an inflation rate, so the engine works across a
+multi-decade projection.
 
 Scope / honesty:
   * Federal + ONTARIO + QUEBEC are fully encoded (sourced 2025 figures; see
     docs/CANADA_RULES.md). Other provinces fall back to Ontario with a one-time
     warning -- more per-province bracket modules are roadmapped.
-  * Quebec is special: it has its own brackets and a higher Basic Personal
-    Amount, NO provincial surtax, and -- critically -- the 16.5% "Quebec
-    abatement" that reduces a Quebec resident's FEDERAL tax (because the province
-    administers programs Ottawa runs elsewhere). The abatement is applied in
-    income_tax() so combined Quebec rates come out right. QPP is taxed exactly
-    like CPP (ordinary income), so it needs no separate handling here -- enter QPP
-    in the cpp_monthly fields.
-  * Models ordinary income. It does NOT yet model the dividend tax credit, the
-    capital-gains 50% inclusion, the federal BPA high-income phase-down, or the
-    Ontario Health Premium. These are refinements, not load-bearing for the
-    RRSP-meltdown question (which turns on ordinary registered-withdrawal income).
+  * Quebec is special: its own brackets and a higher Basic Personal Amount, NO
+    provincial surtax, the 16.5% "Quebec abatement" that reduces a Quebec
+    resident's FEDERAL tax, a bundled (family-income-tested) age/retirement
+    credit, and the individual HSF contribution on pension/investment income.
+    QPP is taxed like CPP (enter it in the cpp_monthly fields).
+  * Retirement credits modelled: the age amount (65+, income-tested) and the
+    pension income amount, federal + provincial. NOT modelled: every other
+    non-refundable credit, the dividend tax credit, the capital-gains 50%
+    inclusion, and the federal BPA high-income phase-down. Illustrative only.
 
-This is illustrative, not tax advice. Verify against CRA before acting.
+This is illustrative, not tax advice. Verify against CRA / Revenu Quebec.
 """
 
 BASE_YEAR = 2025
@@ -37,6 +37,19 @@ FEDERAL_BRACKETS = [
     (0.33, None),
 ]
 FEDERAL_BPA = 16129          # 2025 (phase-down ignored)
+
+# Retirement non-refundable credits (2025). Amounts are credited at the
+# jurisdiction's lowest bracket rate. Federal age amount phases out with income.
+FEDERAL_AGE_AMOUNT = 9028
+FEDERAL_AGE_PHASEOUT = 45522
+FEDERAL_AGE_PHASEOUT_RATE = 0.15
+FEDERAL_PENSION_MAX = 2000
+
+# Quebec individual Health Services Fund contribution (Schedule F, 2025).
+# Piecewise on income subject to HSF (pension/RRIF/investment; OAS + employment
+# excluded). Bands index with inflation; the $1,000 cap is held flat.
+QC_HSF = {"exemption": 18130, "band1_top": 33130, "band1_cap": 150.0,
+          "band2_top": 63060, "band3_top": 148600, "rate": 0.01, "cap": 1000.0}
 
 PROVINCES = {
     "ON": {
@@ -52,6 +65,8 @@ PROVINCES = {
         # Ontario surtax applies to provincial tax PAYABLE (after the BPA credit).
         "surtax": [(0.20, 5710), (0.36, 7307)],  # (extra_rate, tax-payable threshold)
         "abatement": 0.0,
+        "age_amount": 6223, "age_phaseout": 46330, "age_phaseout_rate": 0.15,
+        "pension_max": 1762,
     },
     "QC": {
         "name": "Quebec",
@@ -67,16 +82,25 @@ PROVINCES = {
         "surtax": [],            # Quebec levies no provincial surtax
         # The 16.5% Quebec abatement reduces a Quebec resident's FEDERAL tax.
         "abatement": 0.165,
+        # Bundled age + retirement-income amounts (Schedule B), reduced by 18.75%
+        # of NET FAMILY income over the threshold, then credited at 14%.
+        "qc_age_amount": 3906, "qc_retirement_amount": 3470,
+        "qc_reduction_threshold": 42090, "qc_reduction_rate": 0.1875,
     },
 }
 
 _warned = set()
 
 
+def _f(year, infl):
+    """Inflation index factor from the base year."""
+    return (1 + infl) ** (year - BASE_YEAR)
+
+
 def _bracket_tax(income, brackets, year, infl):
     tax, lo = 0.0, 0.0
     for rate, upper in brackets:
-        hi = float("inf") if upper is None else upper * ((1 + infl) ** (year - BASE_YEAR))
+        hi = float("inf") if upper is None else upper * _f(year, infl)
         if income > lo:
             tax += rate * (min(income, hi) - lo)
         lo = hi
@@ -89,7 +113,7 @@ def federal_tax(income, year=BASE_YEAR, infl=0.021):
     if income <= 0:
         return 0.0
     gross = _bracket_tax(income, FEDERAL_BRACKETS, year, infl)
-    bpa = FEDERAL_BPA * ((1 + infl) ** (year - BASE_YEAR))
+    bpa = FEDERAL_BPA * _f(year, infl)
     credit = FEDERAL_BRACKETS[0][0] * min(income, bpa)
     return max(0.0, gross - credit)
 
@@ -105,26 +129,94 @@ def provincial_tax(income, province="ON", year=BASE_YEAR, infl=0.021):
             _warned.add(province)
         p = PROVINCES["ON"]
     gross = _bracket_tax(income, p["brackets"], year, infl)
-    bpa = p["bpa"] * ((1 + infl) ** (year - BASE_YEAR))
+    bpa = p["bpa"] * _f(year, infl)
     tax = max(0.0, gross - p["brackets"][0][0] * min(income, bpa))
     # Ontario surtax: an extra % of provincial tax PAYABLE above each threshold.
     surtax = 0.0
     for extra_rate, thr in p.get("surtax", []):
-        thr_idx = thr * ((1 + infl) ** (year - BASE_YEAR))
-        surtax += extra_rate * max(0.0, tax - thr_idx)
+        surtax += extra_rate * max(0.0, tax - thr * _f(year, infl))
     return tax + surtax
 
 
-def income_tax(income, province="ON", year=BASE_YEAR, infl=0.021):
+# ---- retirement credits + Quebec HSF --------------------------------------
+
+def _federal_retire_credit(income, year, infl, age, pension_income):
+    """Federal age amount (65+, income-tested) + pension income amount, in $."""
+    f = _f(year, infl)
+    amount = 0.0
+    if age is not None and age >= 65:
+        aa = FEDERAL_AGE_AMOUNT * f
+        aa -= FEDERAL_AGE_PHASEOUT_RATE * max(0.0, income - FEDERAL_AGE_PHASEOUT * f)
+        amount += max(0.0, aa)
+    amount += min(max(0.0, pension_income), FEDERAL_PENSION_MAX * f)
+    return FEDERAL_BRACKETS[0][0] * amount
+
+
+def _provincial_retire_credit(income, province, year, infl, age, pension_income, family_net_income):
+    p = PROVINCES.get(province, PROVINCES["ON"])
+    rate = p["brackets"][0][0]
+    f = _f(year, infl)
+    if province == "QC":
+        # Bundled age + retirement-income amount, reduced by 18.75% of net family
+        # income over the threshold (Schedule B), then credited at 14%.
+        amt = 0.0
+        if age is not None and age >= 65:
+            amt += p["qc_age_amount"] * f
+        amt += min(max(0.0, pension_income), p["qc_retirement_amount"] * f)
+        amt -= p["qc_reduction_rate"] * max(0.0, family_net_income - p["qc_reduction_threshold"] * f)
+        return rate * max(0.0, amt)
+    amount = 0.0
+    if age is not None and age >= 65 and "age_amount" in p:
+        aa = p["age_amount"] * f - p["age_phaseout_rate"] * max(0.0, income - p["age_phaseout"] * f)
+        amount += max(0.0, aa)
+    if "pension_max" in p:
+        amount += min(max(0.0, pension_income), p["pension_max"] * f)
+    return rate * amount
+
+
+def quebec_hsf(hsf_base, year=BASE_YEAR, infl=0.021):
+    """Quebec individual Health Services Fund contribution on HSF-eligible income."""
+    f = _f(year, infl)
+    ex, b1, b2, b3 = (QC_HSF["exemption"] * f, QC_HSF["band1_top"] * f,
+                      QC_HSF["band2_top"] * f, QC_HSF["band3_top"] * f)
+    if hsf_base <= ex:
+        return 0.0
+    if hsf_base <= b1:
+        return min(QC_HSF["band1_cap"], QC_HSF["rate"] * (hsf_base - ex))
+    if hsf_base <= b2:
+        return QC_HSF["band1_cap"]
+    if hsf_base <= b3:
+        return min(QC_HSF["cap"], QC_HSF["band1_cap"] + QC_HSF["rate"] * (hsf_base - b2))
+    return QC_HSF["cap"]
+
+
+def income_tax(income, province="ON", year=BASE_YEAR, infl=0.021,
+               age=None, pension_income=0.0, family_net_income=None, hsf_base=None):
     """Combined federal + provincial ordinary-income tax for one individual.
 
-    For Quebec residents the federal portion is reduced by the 16.5% Quebec
-    abatement before being added to the (separately computed) Quebec tax.
+    Optional retirement inputs:
+      age              -- enables the age amount (65+); None = working-age.
+      pension_income   -- eligible pension/RRIF income for the pension credit.
+      family_net_income-- drives Quebec's family-income-tested bundled credit.
+      hsf_base         -- income subject to the Quebec HSF (exclude OAS +
+                          employment); defaults to `income`.
+    For Quebec residents the federal portion is reduced by the 16.5% abatement.
     """
-    fed = federal_tax(income, year, infl)
-    abatement = PROVINCES.get(province, PROVINCES["ON"]).get("abatement", 0.0)
-    fed *= (1 - abatement)
-    return fed + provincial_tax(income, province, year, infl)
+    if family_net_income is None:
+        family_net_income = income
+    if hsf_base is None:
+        hsf_base = income
+    p = PROVINCES.get(province, PROVINCES["ON"])
+
+    fed = max(0.0, federal_tax(income, year, infl)
+              - _federal_retire_credit(income, year, infl, age, pension_income))
+    fed *= (1 - p.get("abatement", 0.0))
+
+    prov = max(0.0, provincial_tax(income, province, year, infl)
+               - _provincial_retire_credit(income, province, year, infl, age, pension_income, family_net_income))
+
+    hsf = quebec_hsf(hsf_base, year, infl) if province == "QC" else 0.0
+    return fed + prov + hsf
 
 
 def oas_clawback(net_income, oas_received, threshold, recovery_rate=0.15):
@@ -135,16 +227,24 @@ def oas_clawback(net_income, oas_received, threshold, recovery_rate=0.15):
 
 
 def marginal_rate(income, province="ON", year=BASE_YEAR, infl=0.021, step=100.0):
-    """Approximate combined marginal rate at an income level."""
+    """Approximate combined marginal rate at an income level (working-age)."""
     return (income_tax(income + step, province, year, infl)
             - income_tax(income, province, year, infl)) / step
 
 
 if __name__ == "__main__":
-    # Sanity check: monotonic, sensible effective + marginal rates per province.
+    # Working-age: monotonic, sensible marginal rates per province.
     for prov in ("ON", "QC"):
-        print(f"  --- {PROVINCES[prov]['name']} ({prov}) ---")
+        print(f"  --- {PROVINCES[prov]['name']} ({prov}) | working-age ---")
         for inc in (20000, 50000, 90000, 150000, 250000):
             t = income_tax(inc, prov)
             print(f"  {prov} ${inc:>7,}: tax ${t:>9,.0f}  (avg {100*t/inc:4.1f}%, "
                   f"marginal {100*marginal_rate(inc,prov):4.1f}%)")
+    # Age-70 retiree (all income eligible pension): shows age/pension credits + QC HSF.
+    print("  --- age-70 retiree, income all eligible pension ---")
+    for prov in ("ON", "QC"):
+        for inc in (40000, 90000):
+            t = income_tax(inc, prov, age=70, pension_income=inc, hsf_base=inc)
+            tw = income_tax(inc, prov)
+            print(f"  {prov} ${inc:>6,}: retiree ${t:>8,.0f}  vs working ${tw:>8,.0f}  "
+                  f"(credits/HSF delta ${t-tw:+,.0f})")

@@ -193,18 +193,24 @@ enter QPP in the `cpp_monthly` fields. Key differences: QPP can be **deferred to
 72** (vs CPP's 70) for up to **+58.8%** vs the age-65 amount, and the early-claim
 reduction is graduated **0.5–0.6%/mo** (use 0.6%/mo for a max-pension claimant).
 
-**Quebec wrinkles the engine does NOT yet model** (refinements, small vs. the
-bracket/abatement core): the Quebec **pension income amount** credit (14% of ~$3,470,
-2025), the Quebec **age amount** (65+), and the individual **Health Services Fund
-(HSF) contribution** (1% on pension/investment income, OAS excluded, capped
-~$1,000/yr). RRSP/RRIF lump-sum **withholding** is heavier in Quebec (flat 14% Quebec
-+ tiered 5/10/15% federal) — but withholding is a prepayment, not final tax, so it
-doesn't affect the lifetime-tax optimizer. The old per-adult **Quebec health
-contribution was abolished in 2017** — not modelled.
+**Quebec wrinkles the engine NOW models** (added so the tool doesn't mislead Quebec
+retirees): the **individual Health Services Fund (HSF) contribution** — 1% on
+pension / RRIF / investment income (OAS and employment **excluded**), with a $18,130
+exemption and a $1,000/yr cap (so a Quebec retiree melting an RRSP pays it, up to the
+cap) — and Quebec's bundled **age + retirement-income credit** (14% of age $3,906 +
+retirement $3,470, reduced by 18.75% of net family income over $42,090). The age and
+pension credits are modelled **symmetrically** federally and in Ontario too, so the
+ON-vs-QC comparison stays fair. See `engine/tax_ca.py`.
+
+**Still NOT modelled** (genuinely second-order here): Quebec's "amount for a person
+living alone," RRSP/RRIF **withholding** differences (a prepayment, not final tax, so
+it doesn't change the lifetime-tax answer), and any non-registered capital-gains tax.
+The old per-adult **Quebec health contribution was abolished in 2017** — not modelled.
 
 ⚠ **VERIFY** (Retraite Québec / Revenu Québec pages blocked automated fetch): the
-2025 QPP *average* benefit, the HSF exemption/cap, and the exact Quebec
-pension-splitting age wording. Confirm before relying on those specifics.
+2025 QPP *average* benefit, the exact HSF intermediate band breakpoints ($33,130 /
+$63,060 / $148,600 — the exemption, 1% rate, and $1,000 cap are firm), and the exact
+Quebec pension-splitting age wording. Confirm before relying on those specifics.
 
 **Source:** Revenu Québec; canada.ca (Quebec Abatement, Line 44000); TaxTips.ca;
 Retraite Québec; RCGT 2025 QPP/CPP tables.

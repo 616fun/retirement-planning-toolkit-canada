@@ -351,22 +351,37 @@ def _simulate_meltdown(cfg, strategy, target=None):
         withdraw = forced + voluntary
         rrsp -= withdraw
 
-        # ---- tax: equalize retirement income across both spouses once both retired ----
+        # ---- tax: per-spouse, equalizing retirement income once both are retired.
+        # Threads age (age amount), eligible pension income (pension credit),
+        # net family income (Quebec's family-tested credit), and the HSF base
+        # (income excl. OAS/employment) into the tax engine. ----
         retire_income = retirement_fixed + voluntary
+        reg_withdraw = forced + voluntary
         both_retired = (a_age >= a_ret) and (b_age >= b_ret)
+        family_total = retire_income + b_work
+        thr_n = thr0 * idx
         if both_retired:
             half = retire_income / 2.0
             oas_each = (oas_a + oas_b) / 2.0
-            tax = 2 * tax_ca.income_tax(half, prov, year, infl)
-            claw = 2 * tax_ca.oas_clawback(half, oas_each, thr0 * idx)
-            last_survivor_base = (pension + cpp_a + oas_a) / 1.0  # survivor keeps own + maybe survivor benefits
+            # eligible pension income: DB pension always; registered (RRIF)
+            # withdrawals qualify only at 65+ (gate on the older spouse, A).
+            elig_each = (pension + (reg_withdraw if a_age >= 65 else 0.0)) / 2.0
+            hsf_each = max(0.0, half - oas_each)
+            tax = (tax_ca.income_tax(half, prov, year, infl, age=a_age, pension_income=elig_each,
+                                     family_net_income=retire_income, hsf_base=hsf_each)
+                   + tax_ca.income_tax(half, prov, year, infl, age=b_age, pension_income=elig_each,
+                                       family_net_income=retire_income, hsf_base=hsf_each))
+            claw = 2 * tax_ca.oas_clawback(half, oas_each, thr_n)
         else:
-            inc_a = retire_income            # all retirement income to the retired spouse A
-            inc_b = b_work
-            tax = tax_ca.income_tax(inc_a, prov, year, infl) + tax_ca.income_tax(inc_b, prov, year, infl)
-            claw = (tax_ca.oas_clawback(inc_a, oas_a, thr0 * idx)
-                    + tax_ca.oas_clawback(inc_b, oas_b, thr0 * idx))
-            last_survivor_base = pension + cpp_a + oas_a
+            inc_a, inc_b = retire_income, b_work
+            elig_a = pension + (reg_withdraw if a_age >= 65 else 0.0)
+            tax = (tax_ca.income_tax(inc_a, prov, year, infl, age=a_age, pension_income=elig_a,
+                                     family_net_income=family_total, hsf_base=max(0.0, inc_a - oas_a))
+                   + tax_ca.income_tax(inc_b, prov, year, infl, age=b_age, pension_income=0.0,
+                                       family_net_income=family_total, hsf_base=0.0))  # B = employment, no HSF
+            claw = (tax_ca.oas_clawback(inc_a, oas_a, thr_n)
+                    + tax_ca.oas_clawback(inc_b, oas_b, thr_n))
+        last_survivor_base = pension + cpp_a + oas_a
         year_tax = tax + claw
         lifetime_tax += year_tax / ((1 + infl) ** n)   # present value, today's $
 
@@ -392,8 +407,11 @@ def _simulate_meltdown(cfg, strategy, target=None):
 
     # ---- terminal tax: RRSP left standing is deemed disposed at death (single filer) ----
     final_year = base_year + horizon
-    terminal_raw = (tax_ca.income_tax(last_survivor_base + rrsp, prov, final_year, infl)
-                    - tax_ca.income_tax(last_survivor_base, prov, final_year, infl))
+    final_age = a_age0 + horizon   # surviving spouse, single filer
+    terminal_raw = (tax_ca.income_tax(last_survivor_base + rrsp, prov, final_year, infl,
+                                      age=final_age, pension_income=last_survivor_base + rrsp)
+                    - tax_ca.income_tax(last_survivor_base, prov, final_year, infl,
+                                        age=final_age, pension_income=last_survivor_base))
     terminal_tax = terminal_raw / ((1 + infl) ** horizon)   # present value, today's $
     total_tax = lifetime_tax + terminal_tax
     estate = rrsp + buffer + tfsa
@@ -427,11 +445,12 @@ def build_meltdown(wb, cfg):
     spouses, PLUS the terminal deemed-disposition tax on whatever RRSP is left at
     death. Compares three strategies and shows the winner's year-by-year plan.
 
-    Tax engine: engine/tax_ca.py (federal + Ontario; other provinces fall back to
-    Ontario with a warning -- per-province modules are roadmapped). Models ordinary
-    income, OAS clawback, pension/registered income equalization between spouses,
-    and terminal RRSP tax. Does NOT yet model non-registered capital-gains tax,
-    the dividend tax credit, or TFSA contribution limits. Illustrative, not advice.
+    Tax engine: engine/tax_ca.py (federal + Ontario + Quebec; other provinces fall
+    back to Ontario with a warning). Models ordinary income, the age + pension-income
+    credits, the OAS clawback, Quebec's HSF contribution, pension/registered income
+    equalization between spouses, and terminal RRSP tax. Does NOT yet model
+    non-registered capital-gains tax, the dividend tax credit, or TFSA contribution
+    limits. Illustrative, not advice.
     """
     ws = wb.create_sheet("RRSP Meltdown")
     _title(ws, "RRSP Meltdown -- Lifetime-Tax Optimizer")
