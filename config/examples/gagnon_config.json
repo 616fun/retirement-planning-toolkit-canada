@@ -3,7 +3,7 @@
 
   "language": "fr",
   "household": {
-    "name": "Gagnon Household",
+    "name": "Gagnon",
     "members": [
       { "id": "spouse_a", "display_name": "Camille", "birth_year": 1974, "retirement_age": 60, "cpp_claim_age": 65, "oas_claim_age": 65 },
       { "id": "spouse_b", "display_name": "Luc", "birth_year": 1972, "retirement_age": 62, "cpp_claim_age": 70, "oas_claim_age": 70 }
