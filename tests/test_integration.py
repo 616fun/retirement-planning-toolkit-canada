@@ -42,13 +42,13 @@ def test_built_workbook_round_trips(tmp_path):
 
 @pytest.mark.parametrize("name", DEMOS)
 def test_dashboard_renders_with_panels(name):
+    # Language-neutral structural check (EN/FR text is covered by dedicated tests).
     cfg = _cfg(name)
-    mc = qu.monte_carlo(cfg, n_sims=300)
-    html = rd.render(cfg, mc)
-    assert "<!DOCTYPE html>" in html
-    assert cfg["household"]["name"] in html
-    assert "Concentration" in html
-    assert "Monte Carlo" in html
+    doc = rd.render(cfg, qu.monte_carlo(cfg, n_sims=300))
+    assert "<!DOCTYPE html>" in doc
+    assert cfg["household"]["name"] in doc
+    assert 'class="kpis"' in doc            # KPI tiles present
+    assert doc.count('class="panel"') >= 2  # concentration + Monte Carlo panels
 
 
 def test_dashboard_localized_french():
