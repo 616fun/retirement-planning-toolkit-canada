@@ -152,6 +152,27 @@ PROVINCES = {
         "age_amount": 6037, "age_phaseout": 44945, "age_phaseout_rate": 0.15,
         "pension_max": 1000,
     },
+    "NL": {
+        "name": "Newfoundland and Labrador",
+        "brackets": [(0.087, 44192), (0.145, 88382), (0.158, 157792), (0.178, 220910),
+                     (0.198, 282214), (0.208, 564429), (0.213, 1128858), (0.218, None)],
+        "bpa": 11067,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 7064, "age_phaseout": 38712, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
+    "PE": {
+        "name": "Prince Edward Island",
+        # PEI moved to a 5-bracket schedule and ELIMINATED its 10% surtax (2024).
+        "brackets": [(0.095, 33328), (0.1347, 64656), (0.166, 105000),
+                     (0.1762, 140000), (0.19, None)],
+        "bpa": 14650,
+        "surtax": [],
+        "abatement": 0.0,
+        "age_amount": 6510, "age_phaseout": 36600, "age_phaseout_rate": 0.15,
+        "pension_max": 1000,
+    },
 }
 
 _warned = set()
